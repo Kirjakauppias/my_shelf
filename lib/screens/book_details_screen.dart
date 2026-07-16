@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/book.dart';
-import '../widgets/manual_book_dialog.dart';
+import '../dialogs/manual_book_dialog.dart';
 
 class BookDetailsResult {
   final bool deleted;
@@ -20,18 +20,15 @@ class BookDetailsScreen extends StatelessWidget {
 
   const BookDetailsScreen({super.key, required this.book});
 
-  void _closeWithResult(
-  BuildContext context,
-  BookDetailsResult result,
-) {
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (!context.mounted) {
-      return;
-    }
+  void _closeWithResult(BuildContext context, BookDetailsResult result) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!context.mounted) {
+        return;
+      }
 
-    Navigator.of(context).pop(result);
-  });
-}
+      Navigator.of(context).pop(result);
+    });
+  }
 
   Future<void> _confirmDelete(BuildContext context) async {
     final shouldDelete = await showDialog<bool>(
@@ -68,10 +65,7 @@ class BookDetailsScreen extends StatelessWidget {
       return;
     }
 
-    _closeWithResult(
-  context,
-  const BookDetailsResult.deleted(),
-);
+    _closeWithResult(context, const BookDetailsResult.deleted());
   }
 
   Future<void> _editBook(BuildContext context) async {
@@ -86,10 +80,7 @@ class BookDetailsScreen extends StatelessWidget {
       return;
     }
 
-    _closeWithResult(
-  context,
-  BookDetailsResult.updated(updatedBook),
-);
+    _closeWithResult(context, BookDetailsResult.updated(updatedBook));
   }
 
   @override

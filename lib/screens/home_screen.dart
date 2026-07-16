@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/book_storage_service.dart';
 import '../widgets/isbn_search_dialog.dart';
 import 'barcode_scanner_screen.dart';
-import '../widgets/manual_book_dialog.dart';
+import '../dialogs/manual_book_dialog.dart';
 import 'book_details_screen.dart';
 
 import '../models/book.dart';
