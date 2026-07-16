@@ -6,6 +6,7 @@ import 'book_spine.dart';
 class ShelfRow extends StatelessWidget {
   final List<Book> books;
 
+  final void Function(Book book) onBookTap;
   final void Function({required Book draggedBook, required Book targetBook})
   onReorder;
 
@@ -19,6 +20,7 @@ class ShelfRow extends StatelessWidget {
     required this.onReorder,
     required this.onMoveToEnd,
     required this.showEndDropTarget,
+    required this.onBookTap,
   });
 
   @override
@@ -49,7 +51,13 @@ class ShelfRow extends StatelessWidget {
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: BookSpine(key: ValueKey(book.id), book: book),
+                  child: BookSpine(
+                    key: ValueKey(book.id),
+                    book: book,
+                    onTap: () {
+                      onBookTap(book);
+                    },
+                  ),
                 );
               },
             ),

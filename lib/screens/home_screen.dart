@@ -3,6 +3,7 @@ import '../services/book_storage_service.dart';
 import '../widgets/isbn_search_dialog.dart';
 import 'barcode_scanner_screen.dart';
 import '../widgets/manual_book_dialog.dart';
+import 'book_details_screen.dart';
 
 import '../models/book.dart';
 import '../widgets/bookshelf.dart';
@@ -146,6 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         books: books,
                         onReorder: _reorderBooks,
                         onMoveToEnd: _moveBookToEnd,
+                        onBookTap: _openBookDetails,
                       ),
               ),
               const SizedBox(height: 16),
@@ -234,6 +236,28 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadBooks();
+  }
+
+  Future<void> _updateBook(Book updatedBook) async {
+    final bookIndex = books.indexWhere((book) => book.id == updatedBook.id);
+
+    if (bookIndex == -1) {
+      return;
+    }
+
+    setState(() {
+      books[bookIndex] = updatedBook;
+    });
+
+    await _saveBooks();
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${updatedBook.title} päivitettiin.')),
+    );
   }
 
   Future<void> _loadBooks() async {
@@ -380,5 +404,52 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     await _addFoundBook(manualBook);
+  }
+
+  Future<void> _openBookDetails(Book book) async {
+    final result = await Navigator.of(context).push<BookDetailsResult>(
+      MaterialPageRoute<BookDetailsResult>(
+        builder: (context) {
+          return BookDetailsScreen(book: book);
+        },
+      ),
+    );
+
+    if (result == null || !mounted) {
+      return;
+    }
+
+    if (result.deleted) {
+      await _deleteBook(book);
+      return;
+    }
+
+    final updatedBook = result.updatedBook;
+
+    if (updatedBook != null) {
+      await _updateBook(updatedBook);
+    }
+  }
+
+  Future<void> _deleteBook(Book book) async {
+    final bookIndex = books.indexWhere((item) => item.id == book.id);
+
+    if (bookIndex == -1) {
+      return;
+    }
+
+    setState(() {
+      books.removeAt(bookIndex);
+    });
+
+    await _saveBooks();
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${book.title} poistettiin kirjahyllystä.')),
+    );
   }
 }

@@ -18,3 +18,9 @@
 ### Korjattu
 
 - Overflow-ongelma hyllyn lopussa
+
+### v0.2.0-alpha
+
+### Lisätty
+
+-Manuaalinen lisäys

@@ -6,6 +6,7 @@ import 'shelf_row.dart';
 
 class Bookshelf extends StatelessWidget {
   final List<Book> books;
+  final void Function(Book book) onBookTap;
 
   final void Function(Book draggedBook) onMoveToEnd;
 
@@ -17,6 +18,7 @@ class Bookshelf extends StatelessWidget {
     required this.books,
     required this.onReorder,
     required this.onMoveToEnd,
+    required this.onBookTap,
   });
 
   static const double bookSpacing = 3;
@@ -57,6 +59,7 @@ class Bookshelf extends StatelessWidget {
                         books: shelfRows[index],
                         onReorder: onReorder,
                         onMoveToEnd: onMoveToEnd,
+                        onBookTap: onBookTap,
                         showEndDropTarget: index == shelfRows.length - 1,
                       ),
                     ),

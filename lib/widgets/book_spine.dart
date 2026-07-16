@@ -4,8 +4,9 @@ import '../models/book.dart';
 
 class BookSpine extends StatelessWidget {
   final Book book;
+  final VoidCallback onTap;
 
-  const BookSpine({super.key, required this.book});
+  const BookSpine({super.key, required this.book, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +32,7 @@ class BookSpine extends StatelessWidget {
       // Kirjan normaali näkymä.
       child: Tooltip(
         message: '${book.title}\n${book.author}',
-        child: _buildBookSpine(),
+        child: GestureDetector(onTap: onTap, child: _buildBookSpine()),
       ),
     );
   }

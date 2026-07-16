@@ -4,8 +4,9 @@ import '../models/book.dart';
 
 class ManualBookDialog extends StatefulWidget {
   final String? initialIsbn;
+  final Book? book;
 
-  const ManualBookDialog({super.key, this.initialIsbn});
+  const ManualBookDialog({super.key, this.initialIsbn, this.book});
 
   @override
   State<ManualBookDialog> createState() => _ManualBookDialogState();
@@ -36,10 +37,23 @@ class _ManualBookDialogState extends State<ManualBookDialog> {
   void initState() {
     super.initState();
 
-    _titleController = TextEditingController();
-    _authorController = TextEditingController();
-    _isbnController = TextEditingController(text: widget.initialIsbn ?? '');
-    _pageCountController = TextEditingController();
+    final existingBook = widget.book;
+
+    _titleController = TextEditingController(text: existingBook?.title ?? '');
+
+    _authorController = TextEditingController(text: existingBook?.author ?? '');
+
+    _isbnController = TextEditingController(
+      text: existingBook?.isbn ?? widget.initialIsbn ?? '',
+    );
+
+    _pageCountController = TextEditingController(
+      text: existingBook?.pageCount.toString() ?? '',
+    );
+
+    if (existingBook != null) {
+      _selectedColor = existingBook.spineColor;
+    }
   }
 
   @override
@@ -62,9 +76,11 @@ class _ManualBookDialogState extends State<ManualBookDialog> {
 
     final pageCount = int.parse(_pageCountController.text.trim());
 
-    final id = isbn.isNotEmpty
-        ? isbn
-        : DateTime.now().microsecondsSinceEpoch.toString();
+    final id =
+        widget.book?.id ??
+        (isbn.isNotEmpty
+            ? isbn
+            : DateTime.now().microsecondsSinceEpoch.toString());
 
     final book = Book(
       id: id,
@@ -82,7 +98,7 @@ class _ManualBookDialogState extends State<ManualBookDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Lisää kirja käsin'),
+      title: Text(widget.book == null ? 'Lisää kirja käsin' : 'Muokkaa kirjaa'),
       content: SizedBox(
         width: 420,
         child: Form(
@@ -213,7 +229,12 @@ class _ManualBookDialogState extends State<ManualBookDialog> {
           },
           child: const Text('Peruuta'),
         ),
-        FilledButton(onPressed: _submit, child: const Text('Lisää hyllyyn')),
+        FilledButton(
+          onPressed: _submit,
+          child: Text(
+            widget.book == null ? 'Lisää hyllyyn' : 'Tallenna muutokset',
+          ),
+        ),
       ],
     );
   }
