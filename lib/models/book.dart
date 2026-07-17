@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class Book {
   final String id;
+  final String shelfId;
   final String? isbn;
   final String title;
   final String author;
@@ -11,6 +12,7 @@ class Book {
 
   const Book({
     required this.id,
+    required this.shelfId,
     this.isbn,
     required this.title,
     required this.author,
@@ -34,6 +36,7 @@ class Book {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'shelfId': shelfId,
       'isbn': isbn,
       'title': title,
       'author': author,
@@ -46,6 +49,7 @@ class Book {
   factory Book.fromJson(Map<String, dynamic> json) {
     return Book(
       id: json['id'] as String,
+      shelfId: json['shelfId'] as String? ?? 'default-shelf',
       isbn: json['isbn'] as String?,
       title: json['title'] as String,
       author: json['author'] as String,

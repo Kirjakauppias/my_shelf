@@ -7,6 +7,7 @@ void main() {
     test('toJson ja fromJson säilyttävät kirjan tiedot', () {
       const originalBook = Book(
         id: '9780575083837',
+        shelfId: 'default-shelf',
         isbn: '9780575083837',
         title: 'The Heroes',
         author: 'Joe Abercrombie',
@@ -19,18 +20,22 @@ void main() {
       final restoredBook = Book.fromJson(json);
 
       expect(restoredBook.id, originalBook.id);
+      expect(restoredBook.shelfId, originalBook.shelfId);
       expect(restoredBook.isbn, originalBook.isbn);
       expect(restoredBook.title, originalBook.title);
       expect(restoredBook.author, originalBook.author);
       expect(restoredBook.pageCount, originalBook.pageCount);
       expect(restoredBook.coverUrl, originalBook.coverUrl);
-      expect(restoredBook.spineColor.toARGB32(),
-          originalBook.spineColor.toARGB32());
+      expect(
+        restoredBook.spineColor.toARGB32(),
+        originalBook.spineColor.toARGB32(),
+      );
     });
 
     test('selkämyksen leveys määräytyy sivumäärästä', () {
       const shortBook = Book(
         id: 'short',
+        shelfId: 'default-shelf',
         title: 'Lyhyt',
         author: 'Kirjailija',
         pageCount: 150,
@@ -39,6 +44,7 @@ void main() {
 
       const mediumBook = Book(
         id: 'medium',
+        shelfId: 'default-shelf',
         title: 'Keskipitkä',
         author: 'Kirjailija',
         pageCount: 300,
@@ -47,6 +53,7 @@ void main() {
 
       const longBook = Book(
         id: 'long',
+        shelfId: 'default-shelf',
         title: 'Pitkä',
         author: 'Kirjailija',
         pageCount: 600,
@@ -61,6 +68,7 @@ void main() {
     test('kirjat ovat samoja, jos id on sama', () {
       const firstBook = Book(
         id: 'same-id',
+        shelfId: 'default-shelf',
         title: 'Ensimmäinen nimi',
         author: 'Kirjailija',
         pageCount: 200,
@@ -69,6 +77,7 @@ void main() {
 
       const secondBook = Book(
         id: 'same-id',
+        shelfId: 'default-shelf',
         title: 'Toinen nimi',
         author: 'Toinen kirjailija',
         pageCount: 400,

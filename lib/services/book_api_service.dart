@@ -103,6 +103,7 @@ class BookApiService {
 
     return Book(
       id: isbn,
+      shelfId: 'default-shelf',
       isbn: isbn,
       title: title,
       author: author,
@@ -167,6 +168,7 @@ class BookApiService {
 
     return Book(
       id: isbn,
+      shelfId: 'default-shelf',
       isbn: isbn,
       title: title,
       author: author,

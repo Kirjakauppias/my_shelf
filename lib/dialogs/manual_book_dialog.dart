@@ -84,6 +84,7 @@ class _ManualBookDialogState extends State<ManualBookDialog> {
 
     final book = Book(
       id: id,
+      shelfId: widget.book?.shelfId ?? 'default-shelf',
       isbn: isbn.isEmpty ? null : isbn,
       title: title,
       author: author,
