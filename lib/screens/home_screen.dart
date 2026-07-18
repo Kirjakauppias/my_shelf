@@ -339,30 +339,75 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          DropdownButtonFormField<String>(
-            key: ValueKey(selectedShelfId),
-            initialValue: selectedShelfId,
-            decoration: InputDecoration(
-              labelText: 'Kirjahylly',
-              prefixIcon: const Icon(Icons.shelves),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            items: shelves.map((shelf) {
-              final bookCount = books
-                  .where((book) => book.shelfId == shelf.id)
-                  .length;
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  key: ValueKey(selectedShelfId),
+                  initialValue: selectedShelfId,
+                  decoration: InputDecoration(
+                    labelText: 'Kirjahylly',
+                    prefixIcon: const Icon(Icons.shelves),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  items: shelves.map((shelf) {
+                    final bookCount = books
+                        .where((book) => book.shelfId == shelf.id)
+                        .length;
 
-              return DropdownMenuItem<String>(
-                value: shelf.id,
-                child: Text(
-                  '${shelf.name} ($bookCount)',
-                  overflow: TextOverflow.ellipsis,
+                    return DropdownMenuItem<String>(
+                      value: shelf.id,
+                      child: Text(
+                        '${shelf.name} ($bookCount)',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: _selectShelf,
                 ),
-              );
-            }).toList(),
-            onChanged: _selectShelf,
+              ),
+              const SizedBox(width: 8),
+              PopupMenuButton<String>(
+                tooltip: 'Hyllyn toiminnot',
+                onSelected: (value) {
+                  switch (value) {
+                    case 'rename':
+                      _openRenameShelfDialog();
+                      break;
+
+                    case 'delete':
+                      _confirmDeleteShelf();
+                      break;
+                  }
+                },
+                itemBuilder: (context) {
+                  return [
+                    const PopupMenuItem<String>(
+                      value: 'rename',
+                      child: ListTile(
+                        leading: Icon(Icons.edit_outlined),
+                        title: Text('Nimeä uudelleen'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'delete',
+                      enabled: selectedShelfId != defaultShelf.id,
+                      child: ListTile(
+                        leading: const Icon(Icons.delete_outline),
+                        title: const Text('Poista hylly'),
+                        contentPadding: EdgeInsets.zero,
+                        enabled: selectedShelfId != defaultShelf.id,
+                      ),
+                    ),
+                  ];
+                },
+                icon: const Icon(Icons.more_vert),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Align(
@@ -688,6 +733,241 @@ class _HomeScreenState extends State<HomeScreen> {
     return shelves.firstWhere(
       (shelf) => shelf.id == selectedShelfId,
       orElse: () => defaultShelf,
+    );
+  }
+
+  Future<void> _openRenameShelfDialog() async {
+    var enteredShelfName = selectedShelf.name;
+
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Nimeä kirjahylly uudelleen'),
+          content: TextFormField(
+            initialValue: selectedShelf.name,
+            autofocus: true,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              labelText: 'Kirjahyllyn nimi',
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (value) {
+              enteredShelfName = value;
+            },
+            onFieldSubmitted: (value) {
+              final trimmedName = value.trim();
+
+              if (trimmedName.isNotEmpty) {
+                Navigator.of(dialogContext).pop(trimmedName);
+              }
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Peruuta'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final trimmedName = enteredShelfName.trim();
+
+                if (trimmedName.isEmpty) {
+                  return;
+                }
+
+                Navigator.of(dialogContext).pop(trimmedName);
+              },
+              child: const Text('Tallenna'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (newName == null || !mounted) {
+      return;
+    }
+
+    await _renameSelectedShelf(newName);
+  }
+
+  Future<void> _renameSelectedShelf(String newName) async {
+    final normalizedName = newName.trim();
+
+    if (normalizedName.isEmpty) {
+      return;
+    }
+
+    final nameAlreadyExists = shelves.any(
+      (shelf) =>
+          shelf.id != selectedShelfId &&
+          shelf.name.trim().toLowerCase() == normalizedName.toLowerCase(),
+    );
+
+    if (nameAlreadyExists) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Samanniminen kirjahylly on jo olemassa.'),
+        ),
+      );
+
+      return;
+    }
+
+    final shelfIndex = shelves.indexWhere(
+      (shelf) => shelf.id == selectedShelfId,
+    );
+
+    if (shelfIndex == -1) {
+      return;
+    }
+
+    final currentShelf = shelves[shelfIndex];
+
+    final renamedShelf = Shelf(
+      id: currentShelf.id,
+      name: normalizedName,
+      position: currentShelf.position,
+    );
+
+    setState(() {
+      shelves[shelfIndex] = renamedShelf;
+    });
+
+    await _saveShelves();
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Kirjahyllyn nimeksi vaihdettiin "$normalizedName".'),
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteShelf() async {
+    if (selectedShelfId == defaultShelf.id) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Oletushyllyä ei voi poistaa.')),
+      );
+
+      return;
+    }
+
+    final shelfToDelete = selectedShelf;
+
+    final bookCount = books
+        .where((book) => book.shelfId == shelfToDelete.id)
+        .length;
+
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Poistetaanko kirjahylly?'),
+          content: Text(
+            bookCount == 0
+                ? 'Hylly "${shelfToDelete.name}" poistetaan.'
+                : 'Hyllyssä "${shelfToDelete.name}" on '
+                      '$bookCount ${bookCount == 1 ? 'kirja' : 'kirjaa'}. '
+                      'Kirjat siirretään oletushyllyyn.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
+              },
+              child: const Text('Peruuta'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: const Text('Poista'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true || !mounted) {
+      return;
+    }
+
+    await _deleteShelf(shelfToDelete);
+  }
+
+  Book _moveBookToShelf(Book book, String newShelfId) {
+    return Book(
+      id: book.id,
+      shelfId: newShelfId,
+      isbn: book.isbn,
+      title: book.title,
+      author: book.author,
+      pageCount: book.pageCount,
+      coverUrl: book.coverUrl,
+      spineColor: book.spineColor,
+    );
+  }
+
+  Future<void> _deleteShelf(Shelf shelfToDelete) async {
+    if (shelfToDelete.id == defaultShelf.id) {
+      return;
+    }
+
+    final updatedBooks = books.map((book) {
+      if (book.shelfId == shelfToDelete.id) {
+        return _moveBookToShelf(book, defaultShelf.id);
+      }
+
+      return book;
+    }).toList();
+
+    final updatedShelves = shelves
+        .where((shelf) => shelf.id != shelfToDelete.id)
+        .toList();
+
+    for (var index = 0; index < updatedShelves.length; index++) {
+      final shelf = updatedShelves[index];
+
+      updatedShelves[index] = Shelf(
+        id: shelf.id,
+        name: shelf.name,
+        position: index,
+      );
+    }
+
+    setState(() {
+      books
+        ..clear()
+        ..addAll(updatedBooks);
+
+      shelves
+        ..clear()
+        ..addAll(updatedShelves);
+
+      selectedShelfId = defaultShelf.id;
+    });
+
+    await Future.wait([_saveBooks(), _saveShelves()]);
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Kirjahylly "${shelfToDelete.name}" poistettiin.'),
+      ),
     );
   }
 }
