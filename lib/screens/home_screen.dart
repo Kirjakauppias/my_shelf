@@ -335,28 +335,45 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildShelfSelector() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
-      child: DropdownButtonFormField<String>(
-        initialValue: selectedShelfId,
-        decoration: InputDecoration(
-          labelText: 'Kirjahylly',
-          prefixIcon: const Icon(Icons.shelves),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        items: shelves.map((shelf) {
-          final bookCount = books
-              .where((book) => book.shelfId == shelf.id)
-              .length;
-
-          return DropdownMenuItem<String>(
-            value: shelf.id,
-            child: Text(
-              '${shelf.name} ($bookCount)',
-              overflow: TextOverflow.ellipsis,
+      padding: const EdgeInsets.fromLTRB(0, 8, 0, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          DropdownButtonFormField<String>(
+            key: ValueKey(selectedShelfId),
+            initialValue: selectedShelfId,
+            decoration: InputDecoration(
+              labelText: 'Kirjahylly',
+              prefixIcon: const Icon(Icons.shelves),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-          );
-        }).toList(),
-        onChanged: _selectShelf,
+            items: shelves.map((shelf) {
+              final bookCount = books
+                  .where((book) => book.shelfId == shelf.id)
+                  .length;
+
+              return DropdownMenuItem<String>(
+                value: shelf.id,
+                child: Text(
+                  '${shelf.name} ($bookCount)',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              );
+            }).toList(),
+            onChanged: _selectShelf,
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: _openCreateShelfDialog,
+              icon: const Icon(Icons.add),
+              label: const Text('Uusi hylly'),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -455,11 +472,23 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Kirja on jo kirjahyllyssä.')),
       );
+
       return;
     }
 
+    final bookForSelectedShelf = Book(
+      id: foundBook.id,
+      shelfId: selectedShelfId,
+      isbn: foundBook.isbn,
+      title: foundBook.title,
+      author: foundBook.author,
+      pageCount: foundBook.pageCount,
+      coverUrl: foundBook.coverUrl,
+      spineColor: foundBook.spineColor,
+    );
+
     setState(() {
-      books.add(foundBook);
+      books.add(bookForSelectedShelf);
     });
 
     await _saveBooks();
@@ -469,7 +498,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${foundBook.title} lisättiin kirjahyllyyn.')),
+      SnackBar(
+        content: Text(
+          '${bookForSelectedShelf.title} lisättiin hyllyyn '
+          '${selectedShelf.name}.',
+        ),
+      ),
     );
   }
 
@@ -539,6 +573,121 @@ class _HomeScreenState extends State<HomeScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('${book.title} poistettiin kirjahyllystä.')),
+    );
+  }
+
+  Future<void> _saveShelves() async {
+    await _shelfStorageService.saveShelves(shelves);
+  }
+
+  Future<void> _openCreateShelfDialog() async {
+    var enteredShelfName = '';
+
+    final shelfName = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Uusi kirjahylly'),
+          content: TextField(
+            autofocus: true,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              labelText: 'Kirjahyllyn nimi',
+              hintText: 'Esimerkiksi Fantasia',
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (value) {
+              enteredShelfName = value;
+            },
+            onSubmitted: (value) {
+              final trimmedName = value.trim();
+
+              if (trimmedName.isEmpty) {
+                return;
+              }
+
+              Navigator.of(dialogContext).pop(trimmedName);
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Peruuta'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final trimmedName = enteredShelfName.trim();
+
+                if (trimmedName.isEmpty) {
+                  return;
+                }
+
+                Navigator.of(dialogContext).pop(trimmedName);
+              },
+              child: const Text('Luo'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shelfName == null || !mounted) {
+      return;
+    }
+
+    await _createShelf(shelfName);
+  }
+
+  Future<void> _createShelf(String shelfName) async {
+    final normalizedName = shelfName.trim();
+
+    if (normalizedName.isEmpty) {
+      return;
+    }
+
+    final shelfAlreadyExists = shelves.any(
+      (shelf) =>
+          shelf.name.trim().toLowerCase() == normalizedName.toLowerCase(),
+    );
+
+    if (shelfAlreadyExists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Samanniminen kirjahylly on jo olemassa.'),
+        ),
+      );
+
+      return;
+    }
+
+    final newShelf = Shelf(
+      id: 'shelf-${DateTime.now().microsecondsSinceEpoch}',
+      name: normalizedName,
+      position: shelves.length,
+    );
+
+    setState(() {
+      shelves.add(newShelf);
+      selectedShelfId = newShelf.id;
+    });
+
+    await _saveShelves();
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$normalizedName luotiin.')));
+  }
+
+  Shelf get selectedShelf {
+    return shelves.firstWhere(
+      (shelf) => shelf.id == selectedShelfId,
+      orElse: () => defaultShelf,
     );
   }
 }
