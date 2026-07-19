@@ -26,6 +26,7 @@ class Book {
   final Color spineColor;
   final ReadingStatus readingStatus;
   final int? rating;
+  final String notes;
 
   const Book({
     required this.id,
@@ -38,6 +39,7 @@ class Book {
     required this.spineColor,
     this.readingStatus = ReadingStatus.unread,
     this.rating,
+    this.notes = '',
   }) : assert(
          rating == null || (rating >= 1 && rating <= 5),
          'Arvosanan täytyy olla välillä 1–5.',
@@ -67,6 +69,7 @@ class Book {
     ReadingStatus? readingStatus,
     int? rating,
     bool clearRating = false,
+    String? notes,
   }) {
     return Book(
       id: id ?? this.id,
@@ -79,6 +82,7 @@ class Book {
       spineColor: spineColor ?? this.spineColor,
       readingStatus: readingStatus ?? this.readingStatus,
       rating: clearRating ? null : rating ?? this.rating,
+      notes: notes ?? this.notes,
     );
   }
 
@@ -94,6 +98,7 @@ class Book {
       'spineColor': spineColor.toARGB32(),
       'readingStatus': readingStatus.name,
       'rating': rating,
+      'notes': notes,
     };
   }
 
@@ -123,6 +128,7 @@ class Book {
       spineColor: Color(json['spineColor'] as int),
       readingStatus: readingStatus,
       rating: ratingValue as int?,
+      notes: json['notes'] as String? ?? '',
     );
   }
 

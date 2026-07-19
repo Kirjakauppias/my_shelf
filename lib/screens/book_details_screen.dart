@@ -191,6 +191,63 @@ class BookDetailsScreen extends StatelessWidget {
     _closeWithResult(context, const BookDetailsResult.deleted());
   }
 
+  Future<void> _editNotes(BuildContext context) async {
+    var draftNotes = book.notes;
+
+    final updatedNotes = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(
+            book.notes.trim().isEmpty
+                ? 'Lisää muistiinpano'
+                : 'Muokkaa muistiinpanoa',
+          ),
+          content: TextFormField(
+            initialValue: book.notes,
+            autofocus: true,
+            minLines: 4,
+            maxLines: 8,
+            maxLength: 2000,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              hintText: 'Kirjoita oma muistiinpano kirjasta...',
+              border: OutlineInputBorder(),
+              alignLabelWithHint: true,
+            ),
+            onChanged: (value) {
+              draftNotes = value;
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Peruuta'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(draftNotes.trim());
+              },
+              child: const Text('Tallenna'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (updatedNotes == null ||
+        updatedNotes == book.notes ||
+        !context.mounted) {
+      return;
+    }
+
+    final updatedBook = book.copyWith(notes: updatedNotes);
+
+    _closeWithResult(context, BookDetailsResult.updated(updatedBook));
+  }
+
   Future<void> _editBook(BuildContext context) async {
     final updatedBook = await showDialog<Book>(
       context: context,
@@ -268,6 +325,46 @@ class BookDetailsScreen extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.notes_outlined,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Muistiinpano',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        book.notes.trim().isEmpty
+                            ? 'Ei muistiinpanoa'
+                            : book.notes,
+                        style: TextStyle(
+                          color: book.notes.trim().isEmpty
+                              ? Colors.black54
+                              : null,
+                          fontStyle: book.notes.trim().isEmpty
+                              ? FontStyle.italic
+                              : FontStyle.normal,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 24),
               OutlinedButton.icon(
                 onPressed: () {
@@ -292,7 +389,18 @@ class BookDetailsScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-
+              OutlinedButton.icon(
+                onPressed: () {
+                  _editNotes(context);
+                },
+                icon: const Icon(Icons.notes_outlined),
+                label: Text(
+                  book.notes.trim().isEmpty
+                      ? 'Lisää muistiinpano'
+                      : 'Muokkaa muistiinpanoa',
+                ),
+              ),
+              const SizedBox(height: 10),
               OutlinedButton.icon(
                 onPressed: () {
                   _editBook(context);
