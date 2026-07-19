@@ -158,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     books: visibleBooks,
                                     onReorder: _reorderVisibleBooks,
                                     onMoveToEnd: _moveBookToEnd,
-                                    onBookTap: _openBookDetails,
+                                    onBookTap: _openBookActions,
                                   ),
                           ),
                         ],
@@ -967,6 +967,170 @@ class _HomeScreenState extends State<HomeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Kirjahylly "${shelfToDelete.name}" poistettiin.'),
+      ),
+    );
+  }
+
+  Future<void> _openBookActions(Book book) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (bottomSheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text(
+                  book.title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(book.author),
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Muokkaa'),
+                onTap: () async {
+                  Navigator.of(bottomSheetContext).pop();
+
+                  await _openBookDetails(book);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.drive_file_move_outlined),
+                title: const Text('Siirrä hyllyyn'),
+                enabled: shelves.length > 1,
+                onTap: shelves.length > 1
+                    ? () {
+                        Navigator.of(bottomSheetContext).pop();
+
+                        _openMoveBookDialog(book);
+                      }
+                    : null,
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('Poista'),
+                onTap: () {
+                  Navigator.of(bottomSheetContext).pop();
+
+                  _deleteBook(book);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openMoveBookDialog(Book book) async {
+    final availableShelves = shelves
+        .where((shelf) => shelf.id != book.shelfId)
+        .toList();
+
+    if (availableShelves.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Kirjan siirtämistä varten tarvitaan toinen hylly.'),
+        ),
+      );
+
+      return;
+    }
+
+    final destinationShelfId = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return SimpleDialog(
+          title: Text('Siirrä "${book.title}"'),
+          children: availableShelves.map((shelf) {
+            final bookCount = books
+                .where((currentBook) => currentBook.shelfId == shelf.id)
+                .length;
+
+            return SimpleDialogOption(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(shelf.id);
+              },
+              child: ListTile(
+                leading: const Icon(Icons.shelves),
+                title: Text(shelf.name),
+                subtitle: Text(
+                  '$bookCount ${bookCount == 1 ? 'kirja' : 'kirjaa'}',
+                ),
+                contentPadding: EdgeInsets.zero,
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+
+    if (destinationShelfId == null || !mounted) {
+      return;
+    }
+
+    await _moveBookToAnotherShelf(
+      book: book,
+      destinationShelfId: destinationShelfId,
+    );
+  }
+
+  Future<void> _moveBookToAnotherShelf({
+    required Book book,
+    required String destinationShelfId,
+  }) async {
+    if (book.shelfId == destinationShelfId) {
+      return;
+    }
+
+    final bookIndex = books.indexWhere(
+      (currentBook) => currentBook.id == book.id,
+    );
+
+    if (bookIndex == -1) {
+      return;
+    }
+
+    final destinationShelfIndex = shelves.indexWhere(
+      (shelf) => shelf.id == destinationShelfId,
+    );
+
+    if (destinationShelfIndex == -1) {
+      return;
+    }
+
+    final destinationShelf = shelves[destinationShelfIndex];
+
+    final movedBook = _moveBookToShelf(book, destinationShelfId);
+
+    setState(() {
+      books[bookIndex] = movedBook;
+    });
+
+    await _saveBooks();
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '"${book.title}" siirrettiin hyllyyn '
+          '"${destinationShelf.name}".',
+        ),
+        action: SnackBarAction(
+          label: 'Näytä',
+          onPressed: () {
+            setState(() {
+              selectedShelfId = destinationShelfId;
+            });
+          },
+        ),
       ),
     );
   }
