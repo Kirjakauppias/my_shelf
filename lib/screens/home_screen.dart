@@ -11,6 +11,7 @@ import '../widgets/welcome_card.dart';
 import 'barcode_scanner_screen.dart';
 import 'book_details_screen.dart';
 import '../services/backup_export_service.dart';
+import '../services/backup_import_service.dart';
 
 enum BookSortOption {
   custom,
@@ -64,10 +65,27 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<Book> books = [];
 
   final BackupExportService _backupExportService = const BackupExportService();
+  final BackupImportService _backupImportService = const BackupImportService();
 
   BookSortOption _selectedSortOption = BookSortOption.custom;
 
   ReadingStatusFilter _selectedReadingStatusFilter = ReadingStatusFilter.all;
+
+  String _formatBackupDate(DateTime dateTime) {
+    final localDateTime = dateTime.toLocal();
+
+    String twoDigits(int value) {
+      return value.toString().padLeft(2, '0');
+    }
+
+    final day = twoDigits(localDateTime.day);
+    final month = twoDigits(localDateTime.month);
+    final year = localDateTime.year;
+    final hour = twoDigits(localDateTime.hour);
+    final minute = twoDigits(localDateTime.minute);
+
+    return '$day.$month.$year klo $hour:$minute';
+  }
 
   bool _matchesReadingStatusFilter(Book book) {
     switch (_selectedReadingStatusFilter) {
@@ -179,6 +197,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: const Icon(Icons.backup_outlined),
               );
             },
+          ),
+          IconButton(
+            tooltip: 'Palauta varmuuskopio',
+            onPressed: _isLoading ? null : _restoreBackup,
+            icon: const Icon(Icons.restore),
           ),
         ],
       ),
@@ -1439,6 +1462,171 @@ class _HomeScreenState extends State<HomeScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Varmuuskopion luominen epäonnistui: $error')),
+      );
+    }
+  }
+
+  Future<bool> _confirmBackupRestore(BackupImportSelection selection) async {
+    final backup = selection.backup;
+
+    final shouldRestore = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Palauta varmuuskopio?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                selection.fileName,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Text('Luotu: ${_formatBackupDate(backup.createdAt)}'),
+              const SizedBox(height: 6),
+              Text('Kirjoja: ${backup.books.length}'),
+              Text('Kirjahyllyjä: ${backup.shelves.length}'),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+              Text(
+                'Nykyiset kirjat ja kirjahyllyt korvataan '
+                'varmuuskopion tiedoilla.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
+              },
+              child: const Text('Peruuta'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: const Text('Palauta'),
+            ),
+          ],
+        );
+      },
+    );
+
+    return shouldRestore ?? false;
+  }
+
+  Future<void> _restoreBackup() async {
+    try {
+      final selection = await _backupImportService.pickBackup();
+
+      if (selection == null || !mounted) {
+        return;
+      }
+
+      final shouldRestore = await _confirmBackupRestore(selection);
+
+      if (!shouldRestore || !mounted) {
+        return;
+      }
+
+      final restoredBooks = List<Book>.from(selection.backup.books);
+
+      final restoredShelves = List<Shelf>.from(selection.backup.shelves);
+
+      // Säilytetään nykyiset tiedot mahdollista palautusta varten,
+      // jos uuden varmuuskopion tallennus epäonnistuu.
+      final previousBooks = List<Book>.from(books);
+      final previousShelves = List<Shelf>.from(shelves);
+
+      try {
+        await Future.wait([
+          _storageService.saveBooks(restoredBooks),
+          _shelfStorageService.saveShelves(restoredShelves),
+        ]);
+      } catch (_) {
+        // Yritetään palauttaa aiemmat tiedot.
+        try {
+          await Future.wait([
+            _storageService.saveBooks(previousBooks),
+            _shelfStorageService.saveShelves(previousShelves),
+          ]);
+        } catch (_) {
+          // Alkuperäinen tallennusvirhe käsitellään alempana.
+        }
+
+        rethrow;
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      final currentShelfStillExists = restoredShelves.any(
+        (shelf) => shelf.id == selectedShelfId,
+      );
+
+      final nextSelectedShelfId = currentShelfStillExists
+          ? selectedShelfId
+          : restoredShelves.first.id;
+
+      _searchController.clear();
+
+      setState(() {
+        books
+          ..clear()
+          ..addAll(restoredBooks);
+
+        shelves
+          ..clear()
+          ..addAll(restoredShelves);
+
+        selectedShelfId = nextSelectedShelfId;
+        searchQuery = '';
+
+        _selectedSortOption = BookSortOption.custom;
+
+        _selectedReadingStatusFilter = ReadingStatusFilter.all;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Varmuuskopio palautettiin: '
+            '${restoredBooks.length} kirjaa ja '
+            '${restoredShelves.length} kirjahyllyä.',
+          ),
+        ),
+      );
+    } on FormatException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Tiedosto ei ole kelvollinen My Shelf '
+            '-varmuuskopio: ${error.message}',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Varmuuskopion palauttaminen epäonnistui: $error'),
+        ),
       );
     }
   }
