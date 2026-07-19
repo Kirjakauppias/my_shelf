@@ -25,6 +25,7 @@ class Book {
   final String? coverUrl;
   final Color spineColor;
   final ReadingStatus readingStatus;
+  final int? rating;
 
   const Book({
     required this.id,
@@ -36,7 +37,11 @@ class Book {
     this.coverUrl,
     required this.spineColor,
     this.readingStatus = ReadingStatus.unread,
-  });
+    this.rating,
+  }) : assert(
+         rating == null || (rating >= 1 && rating <= 5),
+         'Arvosanan täytyy olla välillä 1–5.',
+       );
 
   double get spineWidth {
     if (pageCount < 200) {
@@ -60,6 +65,8 @@ class Book {
     String? coverUrl,
     Color? spineColor,
     ReadingStatus? readingStatus,
+    int? rating,
+    bool clearRating = false,
   }) {
     return Book(
       id: id ?? this.id,
@@ -71,6 +78,7 @@ class Book {
       coverUrl: coverUrl ?? this.coverUrl,
       spineColor: spineColor ?? this.spineColor,
       readingStatus: readingStatus ?? this.readingStatus,
+      rating: clearRating ? null : rating ?? this.rating,
     );
   }
 
@@ -85,6 +93,7 @@ class Book {
       'coverUrl': coverUrl,
       'spineColor': spineColor.toARGB32(),
       'readingStatus': readingStatus.name,
+      'rating': rating,
     };
   }
 
@@ -96,6 +105,13 @@ class Book {
       orElse: () => ReadingStatus.unread,
     );
 
+    final ratingValue = json['rating'];
+
+    if (ratingValue != null &&
+        (ratingValue is! int || ratingValue < 1 || ratingValue > 5)) {
+      throw const FormatException('Kirjan arvosanan täytyy olla välillä 1–5.');
+    }
+
     return Book(
       id: json['id'] as String,
       shelfId: json['shelfId'] as String? ?? 'default-shelf',
@@ -106,6 +122,7 @@ class Book {
       coverUrl: json['coverUrl'] as String?,
       spineColor: Color(json['spineColor'] as int),
       readingStatus: readingStatus,
+      rating: ratingValue as int?,
     );
   }
 
