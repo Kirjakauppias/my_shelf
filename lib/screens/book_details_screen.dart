@@ -41,6 +41,85 @@ class BookDetailsScreen extends StatelessWidget {
     }
   }
 
+  String _ratingLabel(int? rating) {
+    if (rating == null) {
+      return 'Ei arviota';
+    }
+
+    return '$rating / 5';
+  }
+
+  Future<void> _changeRating(BuildContext context) async {
+    final selectedRating = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Anna arvosana'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                book.rating == null
+                    ? 'Kirjaa ei ole vielä arvioitu.'
+                    : 'Nykyinen arvio: ${book.rating} / 5',
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 4,
+                children: List.generate(5, (index) {
+                  final rating = index + 1;
+
+                  final isFilled =
+                      book.rating != null && rating <= book.rating!;
+
+                  return IconButton(
+                    tooltip: rating == 1 ? '1 tähti' : '$rating tähteä',
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop(rating);
+                    },
+                    icon: Icon(isFilled ? Icons.star : Icons.star_border),
+                  );
+                }),
+              ),
+            ],
+          ),
+          actions: [
+            if (book.rating != null)
+              TextButton.icon(
+                onPressed: () {
+                  // Arvo 0 tarkoittaa arvosanan poistamista.
+                  Navigator.of(dialogContext).pop(0);
+                },
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Poista arvio'),
+              ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Peruuta'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (selectedRating == null || !context.mounted) {
+      return;
+    }
+
+    if (selectedRating == book.rating) {
+      return;
+    }
+
+    final updatedBook = selectedRating == 0
+        ? book.copyWith(clearRating: true)
+        : book.copyWith(rating: selectedRating);
+
+    _closeWithResult(context, BookDetailsResult.updated(updatedBook));
+  }
+
   Future<void> _changeReadingStatus(BuildContext context) async {
     final selectedStatus = await showDialog<ReadingStatus>(
       context: context,
@@ -177,6 +256,14 @@ class BookDetailsScreen extends StatelessWidget {
                         label: 'Lukutila',
                         value: book.readingStatus.label,
                       ),
+                      const Divider(),
+                      _BookDetailRow(
+                        icon: book.rating == null
+                            ? Icons.star_border
+                            : Icons.star,
+                        label: 'Arvosana',
+                        value: _ratingLabel(book.rating),
+                      ),
                     ],
                   ),
                 ),
@@ -188,6 +275,21 @@ class BookDetailsScreen extends StatelessWidget {
                 },
                 icon: Icon(_readingStatusIcon(book.readingStatus)),
                 label: Text('Muuta lukutilaa: ${book.readingStatus.label}'),
+              ),
+              const SizedBox(height: 10),
+
+              OutlinedButton.icon(
+                onPressed: () {
+                  _changeRating(context);
+                },
+                icon: Icon(
+                  book.rating == null ? Icons.star_border : Icons.star,
+                ),
+                label: Text(
+                  book.rating == null
+                      ? 'Anna arvosana'
+                      : 'Muuta arvosanaa: ${book.rating} / 5',
+                ),
               ),
               const SizedBox(height: 10),
 
