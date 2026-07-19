@@ -19,6 +19,8 @@ enum BookSortOption {
   titleDescending,
   authorAscending,
   authorDescending,
+  ratingDescending,
+  ratingAscending,
 }
 
 enum ReadingStatusFilter { all, unread, reading, read }
@@ -103,6 +105,46 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  int _compareBooksByRating(
+    Book firstBook,
+    Book secondBook, {
+    required bool descending,
+  }) {
+    final firstRating = firstBook.rating;
+    final secondRating = secondBook.rating;
+
+    // Molemmat kirjat ovat arvioimattomia.
+    // Järjestetään ne keskenään nimen mukaan.
+    if (firstRating == null && secondRating == null) {
+      return firstBook.title.toLowerCase().compareTo(
+        secondBook.title.toLowerCase(),
+      );
+    }
+
+    // Arvioimattomat kirjat sijoitetaan aina loppuun.
+    if (firstRating == null) {
+      return 1;
+    }
+
+    if (secondRating == null) {
+      return -1;
+    }
+
+    final ratingComparison = descending
+        ? secondRating.compareTo(firstRating)
+        : firstRating.compareTo(secondRating);
+
+    // Jos arvosanat eroavat, käytetään arvosanojen järjestystä.
+    if (ratingComparison != 0) {
+      return ratingComparison;
+    }
+
+    // Saman arvosanan saaneet kirjat järjestetään nimen mukaan.
+    return firstBook.title.toLowerCase().compareTo(
+      secondBook.title.toLowerCase(),
+    );
+  }
+
   List<Book> get visibleBooks {
     final normalizedQuery = searchQuery.trim().toLowerCase();
 
@@ -147,6 +189,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
         case BookSortOption.custom:
           return 0;
+
+        case BookSortOption.ratingDescending:
+          return _compareBooksByRating(firstBook, secondBook, descending: true);
+
+        case BookSortOption.ratingAscending:
+          return _compareBooksByRating(
+            firstBook,
+            secondBook,
+            descending: false,
+          );
       }
     });
 
@@ -1353,6 +1405,14 @@ class _HomeScreenState extends State<HomeScreen> {
           PopupMenuItem(
             value: BookSortOption.authorDescending,
             child: Text('Tekijä Ö–A'),
+          ),
+          PopupMenuItem(
+            value: BookSortOption.ratingDescending,
+            child: Text('Arvosana 5–1'),
+          ),
+          PopupMenuItem(
+            value: BookSortOption.ratingAscending,
+            child: Text('Arvosana 1–5'),
           ),
         ];
       },
