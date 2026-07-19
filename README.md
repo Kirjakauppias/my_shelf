@@ -4,11 +4,11 @@ My Shelf on Flutterilla toteutettu mobiilisovellus oman kirjakokoelman hallintaa
 
 Sovelluksella voi skannata kirjojen ISBN-viivakoodeja, hakea kirjan tiedot verkkopalveluista sekä järjestää kirjat omiin virtuaalisiin kirjahyllyihin.
 
-Kirjoja voi hakea, lajitella ja suodattaa lukutilan perusteella. Jokaiselle kirjalle voidaan määrittää lukutilaksi lukematta, kesken tai luettu.
+Kirjoja voi hakea, lajitella ja suodattaa lukutilan perusteella. Kirjastosta voi myös luoda JSON-varmuuskopion ja palauttaa tiedot myöhemmin varmuuskopiotiedostosta.
 
 ## Nykyinen versio
 
-**v0.6.0-alpha**
+**v0.7.0-alpha**
 
 Tämä on sovelluksen kehitysversio. Sovelluksen keskeiset perustoiminnot ovat käytettävissä, mutta ominaisuudet, käyttöliittymä ja tietojen tallennustapa voivat vielä muuttua.
 
@@ -47,7 +47,7 @@ Tämä on sovelluksen kehitysversio. Sovelluksen keskeiset perustoiminnot ovat k
 * Lajittelu kirjan nimen mukaan A–Ö tai Ö–A
 * Lajittelu tekijän mukaan A–Ö tai Ö–A
 
-Kirjojen raahaaminen on käytettävissä vain silloin, kun lajittelutavaksi on valittu **Oma järjestys** eikä haku tai lukutilasuodatus ole aktiivinen.
+Kirjojen raahaaminen on käytettävissä vain silloin, kun lajittelutavaksi on valittu **Oma järjestys** eikä tekstihaku tai lukutilasuodatus ole aktiivinen.
 
 ### Lukutilat
 
@@ -71,6 +71,35 @@ Kirjat voidaan suodattaa näyttämään:
 * lukemattomat kirjat
 * kesken olevat kirjat
 * luetut kirjat
+
+### Varmuuskopiointi ja palautus
+
+Kirjoista ja kirjahyllyistä voidaan luoda JSON-muotoinen varmuuskopio.
+
+Varmuuskopio sisältää:
+
+* varmuuskopioformaatin versionumeron
+* varmuuskopion luontiajankohdan
+* kaikki kirjat ja niiden tiedot
+* kirjojen lukutilat
+* kirjojen kirjahyllyt
+* kirjojen järjestyksen
+* kaikki käyttäjän luomat kirjahyllyt
+
+Varmuuskopio voidaan tallentaa tai jakaa käyttöjärjestelmän jakovalikon kautta.
+
+Aiemmin luotu varmuuskopio voidaan palauttaa valitsemalla JSON-tiedosto laitteen tiedostonvalitsimesta.
+
+Ennen palauttamista sovellus:
+
+* tarkistaa varmuuskopion version
+* tarkistaa JSON-rakenteen
+* tarkistaa kirjojen ja kirjahyllyjen tunnisteet
+* tarkistaa, että jokaisen kirjan kirjahylly löytyy varmuuskopiosta
+* näyttää palautettavien kirjojen ja kirjahyllyjen määrän
+* pyytää käyttäjältä vahvistuksen
+
+Varmuuskopion palauttaminen korvaa sovelluksessa sillä hetkellä olevat kirjat ja kirjahyllyt.
 
 ## Kirjahyllyt
 
@@ -109,13 +138,14 @@ Paikallisesti tallennettavia tietoja ovat esimerkiksi:
 
 Tallennetut tiedot palautetaan automaattisesti sovelluksen käynnistyessä.
 
+JSON-varmuuskopio tarjoaa erillisen tavan siirtää tai säilyttää kirjaston tietoja sovelluksen paikallisen tallennuksen lisäksi.
+
 Nykyinen alpha-versio ei vielä sisällä:
 
-* pilvisynkronointia
+* automaattista pilvisynkronointia
 * käyttäjätilejä
-* varmuuskopiointia tiedostoon
-* tietojen tuontia tiedostosta
-* tietojen synkronointia useiden laitteiden välillä
+* automaattisia varmuuskopioita
+* tietojen automaattista synkronointia useiden laitteiden välillä
 
 ## Käytetyt teknologiat
 
@@ -127,6 +157,8 @@ Nykyinen alpha-versio ei vielä sisällä:
 * Google Books API
 * Open Library API
 * ISBN-viivakoodin skannaus
+* `share_plus`
+* `file_selector`
 
 ## Projektin rakenne
 
@@ -139,11 +171,14 @@ lib/
 │   └── ...
 ├── models/
 │   ├── book.dart
+│   ├── library_backup.dart
 │   └── shelf.dart
 ├── screens/
 │   ├── book_details_screen.dart
 │   └── home_screen.dart
 ├── services/
+│   ├── backup_export_service.dart
+│   ├── backup_import_service.dart
 │   ├── book_storage_service.dart
 │   ├── shelf_storage_service.dart
 │   └── ...
@@ -154,6 +189,13 @@ lib/
 │   ├── shelf_row.dart
 │   └── ...
 └── main.dart
+
+test/
+├── models/
+│   └── library_backup_test.dart
+├── services/
+│   └── backup_import_service_test.dart
+└── ...
 ```
 
 Tiedostorakenne voi muuttua sovelluksen kehityksen aikana.
@@ -194,34 +236,37 @@ Suorita testit:
 flutter test
 ```
 
+Version `v0.7.0-alpha` valmistuessa projektissa oli 20 läpäisevää testiä.
+
 ## Kehitystilanne
 
-Version `v0.6.0-alpha` pääpaino on ollut kirjakokoelman selaamisen ja hallinnan parantamisessa.
+Version `v0.7.0-alpha` pääpaino on ollut kirjaston tietojen varmuuskopioinnissa ja palauttamisessa.
 
 Toteutettuja kokonaisuuksia ovat:
 
-* kirjojen siirtäminen hyllystä toiseen
-* reaaliaikainen hakutoiminto
-* haku nimellä, tekijällä ja ISBN-numerolla
-* kirjojen lajittelu
-* oman järjestyksen ja automaattisen lajittelun erottaminen
-* kirjojen lukutilat
-* lukutilan paikallinen tallentaminen
-* lukutilan näyttäminen kirjan selkämyksessä
-* kirjojen suodattaminen lukutilan perusteella
-* haun, lajittelun ja suodatuksen yhteistoiminta
+* `LibraryBackup`-tietomalli
+* versionumeroitu JSON-varmuuskopioformaatti
+* kirjojen ja kirjahyllyjen vienti samaan tiedostoon
+* varmuuskopion aikaleima
+* JSON-tiedoston jakaminen ja tallentaminen
+* JSON-varmuuskopion valitseminen tiedostonvalitsimella
+* varmuuskopion rakenteen tarkistaminen
+* kirjojen ja kirjahyllyjen eheystarkistukset
+* palautuksen yhteenveto- ja vahvistusdialogi
+* nykyisten tietojen korvaaminen varmuuskopion tiedoilla
+* palautettujen tietojen tallentaminen paikalliseen tallennustilaan
+* kattavat varmuuskopion validointitestit
 
 ## Suunniteltuja ominaisuuksia
 
 Tulevissa versioissa voidaan toteuttaa esimerkiksi:
 
 * kirjahyllyjen järjestäminen
-* lajittelu lisäysajan mukaan
+* lajittelu kirjan lisäysajan mukaan
 * kirjan arvosana
-* kirjaan liittyvät muistiinpanot
+* kirjakohtaiset muistiinpanot
 * lukemisen aloitus- ja lopetuspäivämäärät
-* JSON-varmuuskopiointi
-* tietojen palauttaminen JSON-tiedostosta
+* automaattiset varmuuskopiot
 * käyttöliittymän ja lukutilatunnisteiden viimeistely
 * pilvisynkronointi
 * käyttäjätilit

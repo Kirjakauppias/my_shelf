@@ -1,9 +1,3 @@
-# Changelog
-
-Kaikki My Shelf -sovelluksen merkittävät muutokset dokumentoidaan tähän tiedostoon.
-
-Projektissa käytetään semanttista versionumerointia soveltuvin osin.
-
 ## [Unreleased]
 
 ### Suunnitteilla
@@ -13,10 +7,85 @@ Projektissa käytetään semanttista versionumerointia soveltuvin osin.
 - Kirjakohtaiset muistiinpanot
 - Lukemisen aloitus- ja lopetuspäivämäärät
 - Lajittelu kirjan lisäysajan perusteella
-- JSON-varmuuskopiointi ja palautus
+- Automaattiset varmuuskopiot
 - Käyttöliittymän ja lukutilatunnisteiden viimeistely
 - Pilvisynkronointi
 - Käyttäjätilit
+
+## [0.7.0-alpha] - 2026-07-19
+
+### Lisätty
+
+- `LibraryBackup`-tietomalli
+- Versionumeroitu JSON-varmuuskopioformaatti
+- Varmuuskopion `formatVersion`-kenttä
+- Varmuuskopion `createdAt`-aikaleima
+- Kirjojen ja kirjahyllyjen tallentaminen samaan varmuuskopioon
+- JSON-varmuuskopion muuntaminen ihmisen luettavaan muotoon
+- JSON-varmuuskopion vientipalvelu
+- Aikaleiman sisältävä varmuuskopiotiedoston nimi
+- Varmuuskopion jakaminen ja tallentaminen käyttöjärjestelmän jakovalikolla
+- Varmuuskopion vientipainike sovelluksen yläpalkkiin
+- JSON-varmuuskopion tiedostonvalitsin
+- Varmuuskopion tuontipalvelu
+- Varmuuskopion version tarkistaminen
+- Varmuuskopion JSON-rakenteen tarkistaminen
+- Kirjahyllytunnisteiden tarkistaminen
+- Kirjatunnisteiden tarkistaminen
+- Päällekkäisten kirjahyllytunnisteiden tunnistaminen
+- Päällekkäisten kirjatunnisteiden tunnistaminen
+- Kirjojen kirjahyllyviittausten tarkistaminen
+- Palautettavan tiedoston nimen näyttäminen
+- Varmuuskopion luontiajankohdan näyttäminen
+- Palautettavien kirjojen ja kirjahyllyjen määrän näyttäminen
+- Palautuksen vahvistusdialogi
+- Varmuuskopion palautuspainike sovelluksen yläpalkkiin
+- Virheellisen varmuuskopion käyttäjäystävällinen virheilmoitus
+- `share_plus`-riippuvuus
+- `file_selector`-riippuvuus
+
+### Muutettu
+
+- Varmuuskopion palauttaminen korvaa nykyiset kirjat ja kirjahyllyt vahvistuksen jälkeen
+- Palautetut kirjat ja kirjahyllyt tallennetaan välittömästi paikalliseen tallennustilaan
+- Aktiivinen hylly säilytetään palautuksen jälkeen, jos sama hylly löytyy varmuuskopiosta
+- Muussa tapauksessa palautuksen jälkeen valitaan varmuuskopion ensimmäinen hylly
+- Tekstihaku tyhjennetään varmuuskopion palautuksen yhteydessä
+- Lajittelutapa palautetaan Oma järjestys -tilaan
+- Lukutilasuodatus palautetaan Kaikki-tilaan
+- Aiemmat paikalliset tiedot pyritään palauttamaan, jos varmuuskopion tallennus epäonnistuu
+
+### Korjattu
+
+- Korjattu varmuuskopion testitiedoston sijainti `lib`-hakemistosta `test`-hakemistoon
+- Korjattu palautustoiminnon viittaus väärään `BookStorageService`-kentän nimeen
+- Estetty varmuuskopion palauttaminen, jos siinä ei ole yhtään kirjahyllyä
+- Estetty tyhjien kirja- ja kirjahyllytunnisteiden hyväksyminen
+- Estetty kirjojen palauttaminen puuttuviin kirjahyllyihin
+- Estetty tuntemattoman varmuuskopioformaatin palauttaminen
+
+### Testattu
+
+- Varmuuskopion muuttaminen JSONiksi
+- JSON-varmuuskopion palauttaminen tietomalliksi
+- Varmuuskopion luontiajankohdan säilyminen
+- Kirjojen tietojen säilyminen varmuuskopiossa
+- Kirjahyllyjen tietojen säilyminen varmuuskopiossa
+- Lukutilojen säilyminen varmuuskopiossa
+- Kelvollisen varmuuskopion hyväksyminen
+- Tyhjän kirjahyllylistan hylkääminen
+- Tyhjän kirjahyllytunnisteen hylkääminen
+- Tyhjän kirjatunnisteen hylkääminen
+- Päällekkäisten kirjahyllytunnisteiden hylkääminen
+- Päällekkäisten kirjatunnisteiden hylkääminen
+- Puuttuvaan kirjahyllyyn viittaavan kirjan hylkääminen
+- Virheellisen JSON-tiedoston hylkääminen
+- Tuntemattoman varmuuskopioversion hylkääminen
+- Varmuuskopion vienti oikealla laitteella
+- Varmuuskopion palautus oikealla laitteella
+- Palautettujen tietojen säilyminen sovelluksen uudelleenkäynnistyksen jälkeen
+- Flutter-analyysi
+- Kaikki 20 automaattista testiä
 
 ## [0.6.0-alpha] - 2026-07-19
 
