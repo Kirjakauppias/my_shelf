@@ -10,6 +10,7 @@ import '../widgets/isbn_search_dialog.dart';
 import '../widgets/welcome_card.dart';
 import 'barcode_scanner_screen.dart';
 import 'book_details_screen.dart';
+import '../services/backup_export_service.dart';
 
 enum BookSortOption {
   custom,
@@ -61,6 +62,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String searchQuery = '';
 
   final List<Book> books = [];
+
+  final BackupExportService _backupExportService = const BackupExportService();
 
   BookSortOption _selectedSortOption = BookSortOption.custom;
 
@@ -163,6 +166,21 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         centerTitle: true,
         backgroundColor: const Color(0xFFF7F3ED),
+        actions: [
+          Builder(
+            builder: (buttonContext) {
+              return IconButton(
+                tooltip: 'Luo varmuuskopio',
+                onPressed: _isLoading
+                    ? null
+                    : () {
+                        _exportBackup(buttonContext);
+                      },
+                icon: const Icon(Icons.backup_outlined),
+              );
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: Padding(
@@ -1374,5 +1392,54 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _exportBackup(BuildContext shareButtonContext) async {
+    final renderObject = shareButtonContext.findRenderObject();
+
+    final sharePositionOrigin = renderObject is RenderBox
+        ? renderObject.localToGlobal(Offset.zero) & renderObject.size
+        : null;
+
+    try {
+      final outcome = await _backupExportService.exportBackup(
+        books: books,
+        shelves: shelves,
+        sharePositionOrigin: sharePositionOrigin,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      switch (outcome) {
+        case BackupExportOutcome.shared:
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Varmuuskopio jaettiin tai tallennettiin.'),
+            ),
+          );
+
+        case BackupExportOutcome.dismissed:
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Varmuuskopion vienti peruutettiin.')),
+          );
+
+        case BackupExportOutcome.statusUnavailable:
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Varmuuskopio avattiin jakovalikkoon.'),
+            ),
+          );
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Varmuuskopion luominen epäonnistui: $error')),
+      );
+    }
   }
 }
