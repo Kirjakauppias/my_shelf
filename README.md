@@ -2,30 +2,75 @@
 
 My Shelf on Flutterilla toteutettu mobiilisovellus oman kirjakokoelman hallintaan.
 
-Sovelluksella voi skannata kirjojen ISBN-viivakoodeja, hakea kirjan tiedot verkkopalveluista ja järjestää kirjat omiin virtuaalisiin kirjahyllyihin.
+Sovelluksella voi skannata kirjojen ISBN-viivakoodeja, hakea kirjan tiedot verkkopalveluista sekä järjestää kirjat omiin virtuaalisiin kirjahyllyihin.
+
+Kirjoja voi hakea, lajitella ja suodattaa lukutilan perusteella. Jokaiselle kirjalle voidaan määrittää lukutilaksi lukematta, kesken tai luettu.
 
 ## Nykyinen versio
 
-**v0.4.0-alpha**
+**v0.6.0-alpha**
 
-Tämä on sovelluksen kehitysversio. Sovelluksen perustoiminnot ovat käytettävissä, mutta ominaisuudet, käyttöliittymä ja tietojen tallennustapa voivat vielä muuttua.
+Tämä on sovelluksen kehitysversio. Sovelluksen keskeiset perustoiminnot ovat käytettävissä, mutta ominaisuudet, käyttöliittymä ja tietojen tallennustapa voivat vielä muuttua.
 
 ## Ominaisuudet
 
+### Kirjojen hallinta
+
 * Kirjan ISBN-viivakoodin skannaus
+* ISBN-numeron syöttäminen käsin
 * Kirjatietojen haku Google Books -palvelusta
 * Vaihtoehtoinen haku Open Library -palvelusta
 * Kirjan lisääminen manuaalisesti
+* Kirjan tietojen tarkasteleminen
 * Kirjan tietojen muokkaaminen
 * Kirjan poistaminen
-* Kirjojen järjestäminen kirjahyllyssä raahaamalla
+* Kirjan siirtäminen hyllystä toiseen
+
+### Kirjahyllyt
+
 * Useiden kirjahyllyjen luominen
 * Kirjahyllyn valitseminen
 * Kirjahyllyn nimeäminen uudelleen
 * Kirjahyllyn poistaminen
 * Poistetun hyllyn kirjojen siirtäminen oletushyllyyn
-* Kirjojen ja kirjahyllyjen paikallinen tallennus
-* Tallennettujen tietojen palauttaminen sovelluksen käynnistyessä
+* Kirjojen järjestäminen raahaamalla
+* Kirjojen järjestyksen säilyttäminen sovelluksen käynnistysten välillä
+
+### Haku ja lajittelu
+
+* Reaaliaikainen hakutoiminto
+* Haku kirjan nimellä
+* Haku tekijän nimellä
+* Haku ISBN-numerolla
+* Haun tyhjentäminen yhdellä painikkeella
+* Kirjojen näyttäminen omassa järjestyksessä
+* Lajittelu kirjan nimen mukaan A–Ö tai Ö–A
+* Lajittelu tekijän mukaan A–Ö tai Ö–A
+
+Kirjojen raahaaminen on käytettävissä vain silloin, kun lajittelutavaksi on valittu **Oma järjestys** eikä haku tai lukutilasuodatus ole aktiivinen.
+
+### Lukutilat
+
+Jokaiselle kirjalle voidaan määrittää yksi seuraavista lukutiloista:
+
+* Lukematta
+* Kesken
+* Luettu
+
+Lukutila:
+
+* tallennetaan kirjan mukana
+* näkyy kirjan tietonäkymässä
+* voidaan vaihtaa kirjan tietonäkymästä
+* näkyy tunnisteena kirjan selkämyksessä
+* voidaan käyttää kirjojen suodattamiseen
+
+Kirjat voidaan suodattaa näyttämään:
+
+* kaikki kirjat
+* lukemattomat kirjat
+* kesken olevat kirjat
+* luetut kirjat
 
 ## Kirjahyllyt
 
@@ -37,9 +82,11 @@ Käyttäjä voi luoda uusia hyllyjä esimerkiksi seuraaville kokoelmille:
 * Scifi
 * Historia
 * Sarjakuvat
-* Lukemattomat kirjat
+* Tietokirjat
 
 Uusi kirja lisätään sillä hetkellä valittuna olevaan hyllyyn.
+
+Kirja voidaan myöhemmin siirtää toiseen hyllyyn kirjan toimintovalikon kautta.
 
 Kun käyttäjän luoma hylly poistetaan, sen sisältämät kirjat siirretään automaattisesti oletushyllyyn.
 
@@ -49,11 +96,25 @@ Kirjat ja kirjahyllyt tallennetaan laitteen paikalliseen tallennustilaan `Shared
 
 Tallennettavat tiedot muunnetaan JSON-muotoon ennen tallentamista.
 
+Paikallisesti tallennettavia tietoja ovat esimerkiksi:
+
+* kirjojen perustiedot
+* ISBN-numero
+* kansikuvan osoite
+* kirjan selkämyksen väri
+* kirjan hylly
+* kirjan lukutila
+* kirjojen oma järjestys
+* käyttäjän luomat kirjahyllyt
+
+Tallennetut tiedot palautetaan automaattisesti sovelluksen käynnistyessä.
+
 Nykyinen alpha-versio ei vielä sisällä:
 
 * pilvisynkronointia
 * käyttäjätilejä
 * varmuuskopiointia tiedostoon
+* tietojen tuontia tiedostosta
 * tietojen synkronointia useiden laitteiden välillä
 
 ## Käytetyt teknologiat
@@ -62,6 +123,7 @@ Nykyinen alpha-versio ei vielä sisällä:
 * Dart
 * Material 3
 * SharedPreferences
+* JSON
 * Google Books API
 * Open Library API
 * ISBN-viivakoodin skannaus
@@ -72,17 +134,24 @@ Projektin keskeiset hakemistot:
 
 ```text
 lib/
+├── dialogs/
+│   ├── manual_book_dialog.dart
+│   └── ...
 ├── models/
 │   ├── book.dart
 │   └── shelf.dart
 ├── screens/
+│   ├── book_details_screen.dart
 │   └── home_screen.dart
 ├── services/
 │   ├── book_storage_service.dart
 │   ├── shelf_storage_service.dart
 │   └── ...
 ├── widgets/
+│   ├── book_spine.dart
 │   ├── bookshelf.dart
+│   ├── shelf_board.dart
+│   ├── shelf_row.dart
 │   └── ...
 └── main.dart
 ```
@@ -127,31 +196,35 @@ flutter test
 
 ## Kehitystilanne
 
-Version `v0.4.0-alpha` pääpaino oli useiden kirjahyllyjen tuessa.
+Version `v0.6.0-alpha` pääpaino on ollut kirjakokoelman selaamisen ja hallinnan parantamisessa.
 
 Toteutettuja kokonaisuuksia ovat:
 
-* `Shelf`-tietomalli
-* kirjahyllyjen paikallinen tallennus
-* oletushyllyn automaattinen luominen
-* valitun hyllyn kirjojen näyttäminen
-* uuden hyllyn luominen
-* hyllyn uudelleennimeäminen
-* hyllyn poistaminen
-* kirjojen säilyttäminen oikeissa hyllyissä sovelluksen uudelleenkäynnistyksen jälkeen
+* kirjojen siirtäminen hyllystä toiseen
+* reaaliaikainen hakutoiminto
+* haku nimellä, tekijällä ja ISBN-numerolla
+* kirjojen lajittelu
+* oman järjestyksen ja automaattisen lajittelun erottaminen
+* kirjojen lukutilat
+* lukutilan paikallinen tallentaminen
+* lukutilan näyttäminen kirjan selkämyksessä
+* kirjojen suodattaminen lukutilan perusteella
+* haun, lajittelun ja suodatuksen yhteistoiminta
 
 ## Suunniteltuja ominaisuuksia
 
 Tulevissa versioissa voidaan toteuttaa esimerkiksi:
 
-* kirjan siirtäminen hyllystä toiseen
 * kirjahyllyjen järjestäminen
-* kirjojen hakutoiminto
-* lajittelu nimen, tekijän tai lisäysajan mukaan
-* lukutila: lukematta, kesken ja luettu
-* arviot ja muistiinpanot
-* JSON-varmuuskopiointi ja palautus
+* lajittelu lisäysajan mukaan
+* kirjan arvosana
+* kirjaan liittyvät muistiinpanot
+* lukemisen aloitus- ja lopetuspäivämäärät
+* JSON-varmuuskopiointi
+* tietojen palauttaminen JSON-tiedostosta
+* käyttöliittymän ja lukutilatunnisteiden viimeistely
 * pilvisynkronointi
+* käyttäjätilit
 
 ## Versiohistoria
 
