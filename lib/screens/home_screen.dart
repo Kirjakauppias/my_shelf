@@ -19,6 +19,23 @@ enum BookSortOption {
   authorDescending,
 }
 
+enum ReadingStatusFilter { all, unread, reading, read }
+
+extension ReadingStatusFilterExtension on ReadingStatusFilter {
+  String get label {
+    switch (this) {
+      case ReadingStatusFilter.all:
+        return 'Kaikki';
+      case ReadingStatusFilter.unread:
+        return 'Lukematta';
+      case ReadingStatusFilter.reading:
+        return 'Kesken';
+      case ReadingStatusFilter.read:
+        return 'Luettu';
+    }
+  }
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -47,10 +64,31 @@ class _HomeScreenState extends State<HomeScreen> {
 
   BookSortOption _selectedSortOption = BookSortOption.custom;
 
+  ReadingStatusFilter _selectedReadingStatusFilter = ReadingStatusFilter.all;
+
+  bool _matchesReadingStatusFilter(Book book) {
+    switch (_selectedReadingStatusFilter) {
+      case ReadingStatusFilter.all:
+        return true;
+
+      case ReadingStatusFilter.unread:
+        return book.readingStatus == ReadingStatus.unread;
+
+      case ReadingStatusFilter.reading:
+        return book.readingStatus == ReadingStatus.reading;
+
+      case ReadingStatusFilter.read:
+        return book.readingStatus == ReadingStatus.read;
+    }
+  }
+
   List<Book> get visibleBooks {
     final normalizedQuery = searchQuery.trim().toLowerCase();
 
     final filteredBooks = selectedShelfBooks.where((book) {
+      if (!_matchesReadingStatusFilter(book)) {
+        return false;
+      }
       if (normalizedQuery.isEmpty) {
         return true;
       }
@@ -94,6 +132,19 @@ class _HomeScreenState extends State<HomeScreen> {
     return filteredBooks;
   }
 
+  bool get _canReorderBooks {
+    return _selectedSortOption == BookSortOption.custom &&
+        searchQuery.trim().isEmpty &&
+        _selectedReadingStatusFilter == ReadingStatusFilter.all;
+  }
+
+  void _disabledReorder({
+    required Book draggedBook,
+    required Book targetBook,
+  }) {}
+
+  void _disabledMoveToEnd(Book draggedBook) {}
+
   @override
   void initState() {
     super.initState();
@@ -133,8 +184,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Row(
                               children: [
                                 Expanded(child: _buildSearchField()),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: 4),
                                 _buildSortButton(),
+                                _buildReadingStatusFilterButton(),
                               ],
                             ),
                           ),
@@ -1217,12 +1269,15 @@ class _HomeScreenState extends State<HomeScreen> {
       return _buildNoSearchResults();
     }
 
+    if (visibleBooks.isEmpty &&
+        _selectedReadingStatusFilter != ReadingStatusFilter.all) {
+      return _buildNoFilteredBooks();
+    }
+
     return Bookshelf(
       books: visibleBooks,
-      onReorder: searchQuery.trim().isEmpty
-          ? _reorderVisibleBooks
-          : ({required Book draggedBook, required Book targetBook}) {},
-      onMoveToEnd: searchQuery.trim().isEmpty ? _moveBookToEnd : (book) {},
+      onReorder: _canReorderBooks ? _reorderVisibleBooks : _disabledReorder,
+      onMoveToEnd: _canReorderBooks ? _moveBookToEnd : _disabledMoveToEnd,
       onBookTap: _openBookActions,
     );
   }
@@ -1261,6 +1316,63 @@ class _HomeScreenState extends State<HomeScreen> {
         ];
       },
       icon: const Icon(Icons.sort),
+    );
+  }
+
+  Widget _buildReadingStatusFilterButton() {
+    final isFilterActive =
+        _selectedReadingStatusFilter != ReadingStatusFilter.all;
+
+    return PopupMenuButton<ReadingStatusFilter>(
+      tooltip: 'Suodata lukutilan mukaan',
+      initialValue: _selectedReadingStatusFilter,
+      onSelected: (filter) {
+        setState(() {
+          _selectedReadingStatusFilter = filter;
+        });
+      },
+      itemBuilder: (context) {
+        return ReadingStatusFilter.values.map((filter) {
+          return CheckedPopupMenuItem<ReadingStatusFilter>(
+            value: filter,
+            checked: filter == _selectedReadingStatusFilter,
+            child: Text(filter.label),
+          );
+        }).toList();
+      },
+      icon: Icon(isFilterActive ? Icons.filter_alt : Icons.filter_alt_outlined),
+    );
+  }
+
+  Widget _buildNoFilteredBooks() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Ei kirjoja tällä suodatuksella',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Lukutila: ${_selectedReadingStatusFilter.label}',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _selectedReadingStatusFilter = ReadingStatusFilter.all;
+                });
+              },
+              child: const Text('Näytä kaikki'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
