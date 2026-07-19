@@ -11,6 +11,14 @@ import '../widgets/welcome_card.dart';
 import 'barcode_scanner_screen.dart';
 import 'book_details_screen.dart';
 
+enum BookSortOption {
+  custom,
+  titleAscending,
+  titleDescending,
+  authorAscending,
+  authorDescending,
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -37,18 +45,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Book> books = [];
 
-  List<Book> get visibleBooks {
-    final shelfBooks = books
-        .where((book) => book.shelfId == selectedShelfId)
-        .toList();
+  BookSortOption _selectedSortOption = BookSortOption.custom;
 
+  List<Book> get visibleBooks {
     final normalizedQuery = searchQuery.trim().toLowerCase();
 
-    if (normalizedQuery.isEmpty) {
-      return shelfBooks;
-    }
+    final filteredBooks = selectedShelfBooks.where((book) {
+      if (normalizedQuery.isEmpty) {
+        return true;
+      }
 
-    return shelfBooks.where((book) {
       final title = book.title.toLowerCase();
       final author = book.author.toLowerCase();
       final isbn = (book.isbn ?? '').toLowerCase();
@@ -57,6 +63,35 @@ class _HomeScreenState extends State<HomeScreen> {
           author.contains(normalizedQuery) ||
           isbn.contains(normalizedQuery);
     }).toList();
+
+    filteredBooks.sort((firstBook, secondBook) {
+      switch (_selectedSortOption) {
+        case BookSortOption.titleAscending:
+          return firstBook.title.toLowerCase().compareTo(
+            secondBook.title.toLowerCase(),
+          );
+
+        case BookSortOption.titleDescending:
+          return secondBook.title.toLowerCase().compareTo(
+            firstBook.title.toLowerCase(),
+          );
+
+        case BookSortOption.authorAscending:
+          return firstBook.author.toLowerCase().compareTo(
+            secondBook.author.toLowerCase(),
+          );
+
+        case BookSortOption.authorDescending:
+          return secondBook.author.toLowerCase().compareTo(
+            firstBook.author.toLowerCase(),
+          );
+
+        case BookSortOption.custom:
+          return 0;
+      }
+    });
+
+    return filteredBooks;
   }
 
   @override
@@ -92,10 +127,36 @@ class _HomeScreenState extends State<HomeScreen> {
                     : Column(
                         children: [
                           _buildShelfSelector(),
-                          _buildSearchField(),
+
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Row(
+                              children: [
+                                Expanded(child: _buildSearchField()),
+                                const SizedBox(width: 8),
+                                _buildSortButton(),
+                              ],
+                            ),
+                          ),
+
                           Expanded(child: _buildShelfContent()),
                         ],
                       ),
+                /*Column(
+                        children: [
+                          _buildShelfSelector(),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildSearchField(),
+                              ),
+                              const SizedBox(width: 8),
+                              _buildSortButton(),
+                            ],
+                          ),
+                          Expanded(child: _buildShelfContent()),
+                        ],
+                      ),*/
               ),
               if (!isKeyboardVisible) ...[
                 const SizedBox(height: 16),
@@ -140,77 +201,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-  /*@override
-  Widget build(BuildContext context) {
-    final isKeyboardVisible =
-      MediaQuery.viewInsetsOf(context).bottom > 0;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'My Shelf',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        backgroundColor: const Color(0xFFF7F3ED),
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              WelcomeCard(bookCount: books.length),
-              const SizedBox(height: 12),
-              Expanded(
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : Column(
-                        children: [
-                          _buildShelfSelector(),
-                          _buildSearchField(),
-                          Expanded(child: _buildShelfContent()),
-                        ],
-                      ),
-              ),
-              const SizedBox(height: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  FilledButton.icon(
-                    onPressed: _openBarcodeScanner,
-                    icon: const Icon(Icons.qr_code_scanner),
-                    label: const Text('Skannaa kirja'),
-                    style: const ButtonStyle(
-                      minimumSize: WidgetStatePropertyAll(Size.fromHeight(56)),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextButton.icon(
-                          onPressed: _openManualIsbnSearch,
-                          icon: const Icon(Icons.keyboard),
-                          label: const Text('Syötä ISBN'),
-                        ),
-                      ),
-                      Expanded(
-                        child: TextButton.icon(
-                          onPressed: _openManualBookDialog,
-                          icon: const Icon(Icons.edit_outlined),
-                          label: const Text('Lisää käsin'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }*/
 
   Future<void> _loadAppData() async {
     final results = await Future.wait([
@@ -1147,30 +1137,27 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildSearchField() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextField(
-        controller: _searchController,
-        textInputAction: TextInputAction.search,
-        decoration: InputDecoration(
-          labelText: 'Hae kirjoista',
-          hintText: 'Nimi, tekijä tai ISBN',
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: searchQuery.isEmpty
-              ? null
-              : IconButton(
-                  tooltip: 'Tyhjennä haku',
-                  icon: const Icon(Icons.clear),
-                  onPressed: _clearSearch,
-                ),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        onChanged: (value) {
-          setState(() {
-            searchQuery = value;
-          });
-        },
+    return TextField(
+      controller: _searchController,
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        labelText: 'Hae kirjoista',
+        hintText: 'Nimi, tekijä tai ISBN',
+        prefixIcon: const Icon(Icons.search),
+        suffixIcon: searchQuery.isEmpty
+            ? null
+            : IconButton(
+                tooltip: 'Tyhjennä haku',
+                icon: const Icon(Icons.clear),
+                onPressed: _clearSearch,
+              ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
+      onChanged: (value) {
+        setState(() {
+          searchQuery = value;
+        });
+      },
     );
   }
 
@@ -1237,6 +1224,43 @@ class _HomeScreenState extends State<HomeScreen> {
           : ({required Book draggedBook, required Book targetBook}) {},
       onMoveToEnd: searchQuery.trim().isEmpty ? _moveBookToEnd : (book) {},
       onBookTap: _openBookActions,
+    );
+  }
+
+  Widget _buildSortButton() {
+    return PopupMenuButton<BookSortOption>(
+      tooltip: 'Lajittele kirjat',
+      initialValue: _selectedSortOption,
+      onSelected: (sortOption) {
+        setState(() {
+          _selectedSortOption = sortOption;
+        });
+      },
+      itemBuilder: (context) {
+        return const [
+          PopupMenuItem(
+            value: BookSortOption.custom,
+            child: Text('Oma järjestys'),
+          ),
+          PopupMenuItem(
+            value: BookSortOption.titleAscending,
+            child: Text('Nimi A–Ö'),
+          ),
+          PopupMenuItem(
+            value: BookSortOption.titleDescending,
+            child: Text('Nimi Ö–A'),
+          ),
+          PopupMenuItem(
+            value: BookSortOption.authorAscending,
+            child: Text('Tekijä A–Ö'),
+          ),
+          PopupMenuItem(
+            value: BookSortOption.authorDescending,
+            child: Text('Tekijä Ö–A'),
+          ),
+        ];
+      },
+      icon: const Icon(Icons.sort),
     );
   }
 }

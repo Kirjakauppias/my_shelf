@@ -30,6 +30,50 @@ class BookDetailsScreen extends StatelessWidget {
     });
   }
 
+  IconData _readingStatusIcon(ReadingStatus status) {
+    switch (status) {
+      case ReadingStatus.unread:
+        return Icons.radio_button_unchecked;
+      case ReadingStatus.reading:
+        return Icons.menu_book_outlined;
+      case ReadingStatus.read:
+        return Icons.check_circle_outline;
+    }
+  }
+
+  Future<void> _changeReadingStatus(BuildContext context) async {
+    final selectedStatus = await showDialog<ReadingStatus>(
+      context: context,
+      builder: (dialogContext) {
+        return SimpleDialog(
+          title: const Text('Valitse lukutila'),
+          children: ReadingStatus.values.map((status) {
+            final isSelected = status == book.readingStatus;
+
+            return ListTile(
+              leading: Icon(_readingStatusIcon(status)),
+              title: Text(status.label),
+              trailing: isSelected ? const Icon(Icons.check) : null,
+              onTap: () {
+                Navigator.of(dialogContext).pop(status);
+              },
+            );
+          }).toList(),
+        );
+      },
+    );
+
+    if (selectedStatus == null ||
+        selectedStatus == book.readingStatus ||
+        !context.mounted) {
+      return;
+    }
+
+    final updatedBook = book.copyWith(readingStatus: selectedStatus);
+
+    _closeWithResult(context, BookDetailsResult.updated(updatedBook));
+  }
+
   Future<void> _confirmDelete(BuildContext context) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
@@ -42,7 +86,7 @@ class BookDetailsScreen extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(const BookDetailsResult.deleted());
+                Navigator.of(dialogContext).pop(false);
               },
               child: const Text('Peruuta'),
             ),
@@ -127,11 +171,26 @@ class BookDetailsScreen extends StatelessWidget {
                         label: 'Sivumäärä',
                         value: '${book.pageCount}',
                       ),
+                      const Divider(),
+                      _BookDetailRow(
+                        icon: _readingStatusIcon(book.readingStatus),
+                        label: 'Lukutila',
+                        value: book.readingStatus.label,
+                      ),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: () {
+                  _changeReadingStatus(context);
+                },
+                icon: Icon(_readingStatusIcon(book.readingStatus)),
+                label: Text('Muuta lukutilaa: ${book.readingStatus.label}'),
+              ),
+              const SizedBox(height: 10),
+
               OutlinedButton.icon(
                 onPressed: () {
                   _editBook(context);
