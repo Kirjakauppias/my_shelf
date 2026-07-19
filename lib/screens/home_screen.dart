@@ -27,97 +27,36 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final BookStorageService _storageService = BookStorageService();
   final ShelfStorageService _shelfStorageService = ShelfStorageService();
+  final TextEditingController _searchController = TextEditingController();
 
   final List<Shelf> shelves = [];
 
   String selectedShelfId = defaultShelf.id;
   bool _isLoading = true;
+  String searchQuery = '';
 
-  final List<Book> books = [
-    const Book(
-      id: 'dune',
-      shelfId: 'default-shelf',
-      title: 'Dune',
-      author: 'Frank Herbert',
-      pageCount: 604,
-      spineColor: Color(0xFFB85C38),
-    ),
-    const Book(
-      id: 'hobbit',
-      shelfId: 'default-shelf',
-      title: 'The Hobbit',
-      author: 'J. R. R. Tolkien',
-      pageCount: 310,
-      spineColor: Color(0xFF41644A),
-    ),
-    const Book(
-      id: '1984',
-      shelfId: 'default-shelf',
-      title: '1984',
-      author: 'George Orwell',
-      pageCount: 328,
-      spineColor: Color(0xFF37474F),
-    ),
-    const Book(
-      id: 'sapiens',
-      shelfId: 'default-shelf',
-      title: 'Sapiens',
-      author: 'Yuval Noah Harari',
-      pageCount: 498,
-      spineColor: Color(0xFFC28B36),
-    ),
-    const Book(
-      id: 'foundation',
-      shelfId: 'default-shelf',
-      title: 'Foundation',
-      author: 'Isaac Asimov',
-      pageCount: 255,
-      spineColor: Color(0xFF394867),
-    ),
-    const Book(
-      id: 'it',
-      shelfId: 'default-shelf',
-      title: 'It',
-      author: 'Stephen King',
-      pageCount: 1168,
-      spineColor: Color(0xFF7D2636),
-    ),
-    const Book(
-      id: 'dracula',
-      shelfId: 'default-shelf',
-      title: 'Dracula',
-      author: 'Bram Stoker',
-      pageCount: 418,
-      spineColor: Color(0xFF4A2C2A),
-    ),
-    const Book(
-      id: 'frankestein',
-      shelfId: 'default-shelf',
-      title: 'Frankenstein',
-      author: 'Mary Shelley',
-      pageCount: 280,
-      spineColor: Color(0xFF556B2F),
-    ),
-    const Book(
-      id: 'solaris',
-      shelfId: 'default-shelf',
-      title: 'Solaris',
-      author: 'Stanislaw Lem',
-      pageCount: 224,
-      spineColor: Color(0xFF315B72),
-    ),
-    const Book(
-      id: 'neuromancer',
-      shelfId: 'default-shelf',
-      title: 'Neuromancer',
-      author: 'William Gibson',
-      pageCount: 271,
-      spineColor: Color(0xFF5B3A70),
-    ),
-  ];
+  final List<Book> books = [];
 
   List<Book> get visibleBooks {
-    return books.where((book) => book.shelfId == selectedShelfId).toList();
+    final shelfBooks = books
+        .where((book) => book.shelfId == selectedShelfId)
+        .toList();
+
+    final normalizedQuery = searchQuery.trim().toLowerCase();
+
+    if (normalizedQuery.isEmpty) {
+      return shelfBooks;
+    }
+
+    return shelfBooks.where((book) {
+      final title = book.title.toLowerCase();
+      final author = book.author.toLowerCase();
+      final isbn = (book.isbn ?? '').toLowerCase();
+
+      return title.contains(normalizedQuery) ||
+          author.contains(normalizedQuery) ||
+          isbn.contains(normalizedQuery);
+    }).toList();
   }
 
   @override
@@ -128,6 +67,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isKeyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -151,16 +92,83 @@ class _HomeScreenState extends State<HomeScreen> {
                     : Column(
                         children: [
                           _buildShelfSelector(),
-                          Expanded(
-                            child: visibleBooks.isEmpty
-                                ? _buildEmptyShelf()
-                                : Bookshelf(
-                                    books: visibleBooks,
-                                    onReorder: _reorderVisibleBooks,
-                                    onMoveToEnd: _moveBookToEnd,
-                                    onBookTap: _openBookActions,
-                                  ),
+                          _buildSearchField(),
+                          Expanded(child: _buildShelfContent()),
+                        ],
+                      ),
+              ),
+              if (!isKeyboardVisible) ...[
+                const SizedBox(height: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: _openBarcodeScanner,
+                      icon: const Icon(Icons.qr_code_scanner),
+                      label: const Text('Skannaa kirja'),
+                      style: const ButtonStyle(
+                        minimumSize: WidgetStatePropertyAll(
+                          Size.fromHeight(56),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton.icon(
+                            onPressed: _openManualIsbnSearch,
+                            icon: const Icon(Icons.keyboard),
+                            label: const Text('Syötä ISBN'),
                           ),
+                        ),
+                        Expanded(
+                          child: TextButton.icon(
+                            onPressed: _openManualBookDialog,
+                            icon: const Icon(Icons.edit_outlined),
+                            label: const Text('Lisää käsin'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  /*@override
+  Widget build(BuildContext context) {
+    final isKeyboardVisible =
+      MediaQuery.viewInsetsOf(context).bottom > 0;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'My Shelf',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        backgroundColor: const Color(0xFFF7F3ED),
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              WelcomeCard(bookCount: books.length),
+              const SizedBox(height: 12),
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : Column(
+                        children: [
+                          _buildShelfSelector(),
+                          _buildSearchField(),
+                          Expanded(child: _buildShelfContent()),
                         ],
                       ),
               ),
@@ -202,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
-  }
+  }*/
 
   Future<void> _loadAppData() async {
     final results = await Future.wait([
@@ -324,12 +332,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _selectShelf(String? shelfId) {
-    if (shelfId == null || shelfId == selectedShelfId) {
+    if (shelfId == null) {
       return;
     }
 
+    _searchController.clear();
+
     setState(() {
       selectedShelfId = shelfId;
+      searchQuery = '';
     });
   }
 
@@ -1132,6 +1143,100 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildSearchField() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        controller: _searchController,
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          labelText: 'Hae kirjoista',
+          hintText: 'Nimi, tekijä tai ISBN',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: searchQuery.isEmpty
+              ? null
+              : IconButton(
+                  tooltip: 'Tyhjennä haku',
+                  icon: const Icon(Icons.clear),
+                  onPressed: _clearSearch,
+                ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        onChanged: (value) {
+          setState(() {
+            searchQuery = value;
+          });
+        },
+      ),
+    );
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+
+    setState(() {
+      searchQuery = '';
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Book> get selectedShelfBooks {
+    return books.where((book) => book.shelfId == selectedShelfId).toList();
+  }
+
+  Widget _buildNoSearchResults() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Ei hakutuloksia',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Haulla "$searchQuery" ei löytynyt kirjoja.',
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _clearSearch,
+              child: const Text('Tyhjennä haku'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildShelfContent() {
+    if (selectedShelfBooks.isEmpty) {
+      return _buildEmptyShelf();
+    }
+
+    if (visibleBooks.isEmpty && searchQuery.trim().isNotEmpty) {
+      return _buildNoSearchResults();
+    }
+
+    return Bookshelf(
+      books: visibleBooks,
+      onReorder: searchQuery.trim().isEmpty
+          ? _reorderVisibleBooks
+          : ({required Book draggedBook, required Book targetBook}) {},
+      onMoveToEnd: searchQuery.trim().isEmpty ? _moveBookToEnd : (book) {},
+      onBookTap: _openBookActions,
     );
   }
 }
