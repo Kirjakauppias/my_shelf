@@ -3,14 +3,103 @@
 ### Suunnitteilla
 
 - Kirjahyllyjen järjestäminen
-- Kirjan arvosana
-- Kirjakohtaiset muistiinpanot
-- Lukemisen aloitus- ja lopetuspäivämäärät
 - Lajittelu kirjan lisäysajan perusteella
+- Lukemisen aloitus- ja lopetuspäivämäärät
+- Kirjan lainaustiedot
 - Automaattiset varmuuskopiot
 - Käyttöliittymän ja lukutilatunnisteiden viimeistely
 - Pilvisynkronointi
 - Käyttäjätilit
+
+## [0.8.0-alpha] - 2026-07-20
+
+### Lisätty
+
+- Valinnainen `rating`-kenttä `Book`-malliin
+- Kirjan arvosana yhdestä viiteen tähteä
+- Mahdollisuus jättää kirja arvioimatta
+- Arvosanan näyttäminen kirjan tietonäkymässä
+- Arvosanan valintadialogi
+- Arvosanan muuttaminen
+- Arvosanan poistaminen
+- Arvosanan tallentaminen paikalliseen JSON-dataan
+- Arvosanan sisällyttäminen JSON-varmuuskopioon
+- Valinnainen kirjakohtainen muistiinpano
+- Muistiinpanon näyttäminen kirjan tietonäkymässä
+- Muistiinpanon lisäämisdialogi
+- Muistiinpanon muokkaaminen
+- Muistiinpanon poistaminen tallentamalla tyhjä sisältö
+- Muistiinpanon tallentaminen paikalliseen JSON-dataan
+- Muistiinpanon sisällyttäminen JSON-varmuuskopioon
+- Arvosanalajittelu 5–1
+- Arvosanalajittelu 1–5
+- Arvioidut-suodatus
+- Arvioimattomat-suodatus
+- Sisältää muistiinpanon -suodatus
+- Erillinen `BookContentFilter`-suodatus
+- Erillinen `book_query.dart` haku-, suodatus- ja lajittelulogiikalle
+- Automaattiset testit kirjahaulle
+- Automaattiset testit kirjahyllyrajaukselle
+- Automaattiset testit lukutilasuodatukselle
+- Automaattiset testit arvosana- ja muistiinpanosuodatukselle
+- Automaattiset testit lajittelulle
+- Automaattiset testit suodattimien yhdistelmille
+
+### Muutettu
+
+- `Book.copyWith()` tukee arvosanan muuttamista ja poistamista
+- `Book.copyWith()` tukee muistiinpanon muuttamista ja tyhjentämistä
+- Vanhoille kirjoille asetetaan oletuksena arvosanaksi `null`
+- Vanhoille kirjoille asetetaan oletuksena tyhjä muistiinpano
+- Arvioimattomat kirjat sijoitetaan arvosanalajittelussa loppuun
+- Saman arvosanan saaneet kirjat järjestetään nimen mukaan
+- Tekstihaku, lukutilasuodatus ja sisältösuodatus toimivat yhdessä
+- Lajittelu suoritetaan suodatettujen hakutulosten jälkeen
+- Drag and drop sallitaan vain, kun kaikki kirjat ovat näkyvissä ja Oma järjestys on valittuna
+- Haku-, suodatus- ja lajittelulogiikka poistettiin `HomeScreen`-näkymästä erilliseen apufunktioon
+- Oma järjestys säilyttää alkuperäisen kirjalistan järjestyksen
+- Kirjan tietonäkymää laajennettiin arvosanalla ja muistiinpanolla
+
+### Korjattu
+
+- Korjattu muistiinpanodialogin `TextEditingController`-elinkaariongelma
+- Poistettu virhe `A TextEditingController was used after being disposed`
+- Korjattu muistiinpanodialogin sulkeutumisen yhteydessä syntyneet widget-puun jatkovirheet
+- Korjattu kahden hakukentän näkyminen uuden suodatusrivin lisäämisen jälkeen
+- Estetty alkuperäisen kirjalistan muuttuminen automaattisen lajittelun yhteydessä
+- Estetty drag and drop arvio- tai muistiinpanosuodatuksen ollessa aktiivinen
+
+### Testattu
+
+- Arvosanan oletusarvo
+- Arvosanan JSON-tallennus ja palautus
+- Vanhan JSON-datan yhteensopivuus arvosanojen kanssa
+- Arvosanan muuttaminen `copyWith()`-metodilla
+- Arvosanan poistaminen
+- Liian pienen arvosanan hylkääminen
+- Liian suuren arvosanan hylkääminen
+- Muistiinpanon oletusarvo
+- Muistiinpanon JSON-tallennus ja palautus
+- Vanhan JSON-datan yhteensopivuus muistiinpanojen kanssa
+- Muistiinpanon muuttaminen
+- Muistiinpanon tyhjentäminen
+- Haku kirjan nimellä
+- Haku tekijän nimellä
+- Haku ISBN-numerolla
+- Kirjahyllyn perusteella tehtävä rajaus
+- Lukutilasuodatus
+- Arvioitujen kirjojen suodatus
+- Arvioimattomien kirjojen suodatus
+- Muistiinpanoja sisältävien kirjojen suodatus
+- Tekstihaun ja suodattimien yhdistäminen
+- Lajittelu nimen mukaan
+- Lajittelu tekijän mukaan
+- Lajittelu arvosanan mukaan
+- Arvioimattomien kirjojen sijoittaminen listan loppuun
+- Oman järjestyksen säilyminen
+- Alkuperäisen kirjalistan muuttumattomuus
+- Flutter-analyysi
+- Kaikki 49 automaattista testiä
 
 ## [0.7.0-alpha] - 2026-07-19
 

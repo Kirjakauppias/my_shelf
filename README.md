@@ -4,11 +4,11 @@ My Shelf on Flutterilla toteutettu mobiilisovellus oman kirjakokoelman hallintaa
 
 Sovelluksella voi skannata kirjojen ISBN-viivakoodeja, hakea kirjan tiedot verkkopalveluista sekä järjestää kirjat omiin virtuaalisiin kirjahyllyihin.
 
-Kirjoja voi hakea, lajitella ja suodattaa lukutilan perusteella. Kirjastosta voi myös luoda JSON-varmuuskopion ja palauttaa tiedot myöhemmin varmuuskopiotiedostosta.
+Kirjoja voi hakea, lajitella ja suodattaa. Jokaiselle kirjalle voidaan tallentaa lukutila, tähtiarvosana ja henkilökohtainen muistiinpano. Kirjastosta voidaan myös luoda JSON-varmuuskopio ja palauttaa tiedot myöhemmin varmuuskopiotiedostosta.
 
 ## Nykyinen versio
 
-**v0.7.0-alpha**
+**v0.8.0-alpha**
 
 Tämä on sovelluksen kehitysversio. Sovelluksen keskeiset perustoiminnot ovat käytettävissä, mutta ominaisuudet, käyttöliittymä ja tietojen tallennustapa voivat vielä muuttua.
 
@@ -36,18 +36,31 @@ Tämä on sovelluksen kehitysversio. Sovelluksen keskeiset perustoiminnot ovat k
 * Kirjojen järjestäminen raahaamalla
 * Kirjojen järjestyksen säilyttäminen sovelluksen käynnistysten välillä
 
-### Haku ja lajittelu
+### Haku
 
-* Reaaliaikainen hakutoiminto
-* Haku kirjan nimellä
-* Haku tekijän nimellä
-* Haku ISBN-numerolla
-* Haun tyhjentäminen yhdellä painikkeella
-* Kirjojen näyttäminen omassa järjestyksessä
-* Lajittelu kirjan nimen mukaan A–Ö tai Ö–A
-* Lajittelu tekijän mukaan A–Ö tai Ö–A
+Kirjoja voidaan hakea reaaliaikaisesti:
 
-Kirjojen raahaaminen on käytettävissä vain silloin, kun lajittelutavaksi on valittu **Oma järjestys** eikä tekstihaku tai lukutilasuodatus ole aktiivinen.
+* kirjan nimellä
+* tekijän nimellä
+* ISBN-numerolla
+
+Haku kohdistuu sillä hetkellä valittuna olevan kirjahyllyn kirjoihin.
+
+### Lajittelu
+
+Kirjat voidaan järjestää seuraavilla tavoilla:
+
+* Oma järjestys
+* Nimi A–Ö
+* Nimi Ö–A
+* Tekijä A–Ö
+* Tekijä Ö–A
+* Arvosana 5–1
+* Arvosana 1–5
+
+Arvioimattomat kirjat sijoitetaan arvosanalajittelussa listan loppuun.
+
+Kirjojen raahaaminen on käytettävissä vain silloin, kun lajittelutavaksi on valittu **Oma järjestys** eikä haku tai suodatus ole aktiivinen.
 
 ### Lukutilat
 
@@ -65,12 +78,51 @@ Lukutila:
 * näkyy tunnisteena kirjan selkämyksessä
 * voidaan käyttää kirjojen suodattamiseen
 
-Kirjat voidaan suodattaa näyttämään:
+### Arvosanat
 
-* kaikki kirjat
-* lukemattomat kirjat
-* kesken olevat kirjat
-* luetut kirjat
+Kirjalle voidaan antaa arvosana yhdestä viiteen tähteä.
+
+Arvosana:
+
+* tallennetaan kirjan mukana
+* näkyy kirjan tietonäkymässä
+* voidaan vaihtaa tai poistaa
+* säilyy sovelluksen uudelleenkäynnistyksen jälkeen
+* sisältyy JSON-varmuuskopioon
+* voidaan käyttää lajitteluun ja suodattamiseen
+
+Kirja voi olla myös arvioimaton.
+
+### Muistiinpanot
+
+Jokaiselle kirjalle voidaan tallentaa henkilökohtainen muistiinpano.
+
+Muistiinpanoa voidaan käyttää esimerkiksi:
+
+* oman lukukokemuksen kirjaamiseen
+* huomioiden tallentamiseen
+* muistettavien asioiden merkitsemiseen
+* lainassa olevan kirjan tietojen kirjaamiseen
+
+Muistiinpano voidaan lisätä, muokata tai poistaa. Se tallennetaan kirjan mukana ja sisältyy JSON-varmuuskopioon.
+
+### Suodatus
+
+Kirjoja voidaan suodattaa lukutilan perusteella:
+
+* Kaikki
+* Lukematta
+* Kesken
+* Luettu
+
+Lisäksi kirjoja voidaan suodattaa sisällön perusteella:
+
+* Kaikki
+* Arvioidut
+* Arvioimattomat
+* Sisältää muistiinpanon
+
+Tekstihaku, lukutilasuodatus, sisältösuodatus ja lajittelu toimivat yhdessä.
 
 ### Varmuuskopiointi ja palautus
 
@@ -80,8 +132,10 @@ Varmuuskopio sisältää:
 
 * varmuuskopioformaatin versionumeron
 * varmuuskopion luontiajankohdan
-* kaikki kirjat ja niiden tiedot
+* kaikki kirjat ja niiden perustiedot
 * kirjojen lukutilat
+* kirjojen arvosanat
+* kirjojen muistiinpanot
 * kirjojen kirjahyllyt
 * kirjojen järjestyksen
 * kaikki käyttäjän luomat kirjahyllyt
@@ -95,7 +149,8 @@ Ennen palauttamista sovellus:
 * tarkistaa varmuuskopion version
 * tarkistaa JSON-rakenteen
 * tarkistaa kirjojen ja kirjahyllyjen tunnisteet
-* tarkistaa, että jokaisen kirjan kirjahylly löytyy varmuuskopiosta
+* tunnistaa päällekkäiset tunnisteet
+* tarkistaa kirjojen viittaukset kirjahyllyihin
 * näyttää palautettavien kirjojen ja kirjahyllyjen määrän
 * pyytää käyttäjältä vahvistuksen
 
@@ -133,12 +188,14 @@ Paikallisesti tallennettavia tietoja ovat esimerkiksi:
 * kirjan selkämyksen väri
 * kirjan hylly
 * kirjan lukutila
+* kirjan arvosana
+* kirjan muistiinpano
 * kirjojen oma järjestys
 * käyttäjän luomat kirjahyllyt
 
 Tallennetut tiedot palautetaan automaattisesti sovelluksen käynnistyessä.
 
-JSON-varmuuskopio tarjoaa erillisen tavan siirtää tai säilyttää kirjaston tietoja sovelluksen paikallisen tallennuksen lisäksi.
+JSON-varmuuskopio tarjoaa erillisen tavan säilyttää ja siirtää kirjaston tietoja sovelluksen paikallisen tallennuksen lisäksi.
 
 Nykyinen alpha-versio ei vielä sisällä:
 
@@ -182,6 +239,8 @@ lib/
 │   ├── book_storage_service.dart
 │   ├── shelf_storage_service.dart
 │   └── ...
+├── utils/
+│   └── book_query.dart
 ├── widgets/
 │   ├── book_spine.dart
 │   ├── bookshelf.dart
@@ -192,9 +251,13 @@ lib/
 
 test/
 ├── models/
+│   ├── book_notes_test.dart
+│   ├── book_rating_test.dart
 │   └── library_backup_test.dart
 ├── services/
 │   └── backup_import_service_test.dart
+├── utils/
+│   └── book_query_test.dart
 └── ...
 ```
 
@@ -236,26 +299,39 @@ Suorita testit:
 flutter test
 ```
 
-Version `v0.7.0-alpha` valmistuessa projektissa oli 20 läpäisevää testiä.
+Version `v0.8.0-alpha` valmistuessa projektissa oli **49 läpäisevää automaattista testiä**.
+
+Testit kattavat muun muassa:
+
+* kirjamallin JSON-muunnokset
+* arvosanojen validoinnin
+* muistiinpanojen tallennuksen
+* varmuuskopion viennin tietomallin
+* varmuuskopion palautuksen validoinnin
+* kirjahaun
+* kirjahyllyrajauksen
+* lukutilasuodatuksen
+* arvosana- ja muistiinpanosuodatuksen
+* lajittelun
+* eri hakujen ja suodattimien yhdistelmät
+* alkuperäisen kirjalistan järjestyksen säilymisen
 
 ## Kehitystilanne
 
-Version `v0.7.0-alpha` pääpaino on ollut kirjaston tietojen varmuuskopioinnissa ja palauttamisessa.
+Version `v0.8.0-alpha` pääpaino on ollut kirjojen henkilökohtaisten tietojen ja kirjaston selaustoimintojen laajentamisessa.
 
 Toteutettuja kokonaisuuksia ovat:
 
-* `LibraryBackup`-tietomalli
-* versionumeroitu JSON-varmuuskopioformaatti
-* kirjojen ja kirjahyllyjen vienti samaan tiedostoon
-* varmuuskopion aikaleima
-* JSON-tiedoston jakaminen ja tallentaminen
-* JSON-varmuuskopion valitseminen tiedostonvalitsimella
-* varmuuskopion rakenteen tarkistaminen
-* kirjojen ja kirjahyllyjen eheystarkistukset
-* palautuksen yhteenveto- ja vahvistusdialogi
-* nykyisten tietojen korvaaminen varmuuskopion tiedoilla
-* palautettujen tietojen tallentaminen paikalliseen tallennustilaan
-* kattavat varmuuskopion validointitestit
+* yhden–viiden tähden arvosanat
+* arvosanan vaihtaminen ja poistaminen
+* kirjakohtaiset muistiinpanot
+* muistiinpanon lisääminen, muokkaaminen ja poistaminen
+* arvosanaan perustuva lajittelu
+* arvioitujen ja arvioimattomien kirjojen suodatus
+* muistiinpanoja sisältävien kirjojen suodatus
+* hakujen, suodatusten ja lajittelun yhteistoiminta
+* haku- ja suodatuslogiikan siirtäminen erilliseen `book_query.dart`-tiedostoon
+* uuden hakulogiikan kattavat automaattiset testit
 
 ## Suunniteltuja ominaisuuksia
 
@@ -263,9 +339,8 @@ Tulevissa versioissa voidaan toteuttaa esimerkiksi:
 
 * kirjahyllyjen järjestäminen
 * lajittelu kirjan lisäysajan mukaan
-* kirjan arvosana
-* kirjakohtaiset muistiinpanot
 * lukemisen aloitus- ja lopetuspäivämäärät
+* kirjan lainaustiedot
 * automaattiset varmuuskopiot
 * käyttöliittymän ja lukutilatunnisteiden viimeistely
 * pilvisynkronointi
