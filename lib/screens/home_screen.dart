@@ -23,6 +23,8 @@ enum BookSortOption {
   ratingAscending,
 }
 
+enum BookContentFilter { all, rated, unrated, hasNotes }
+
 enum ReadingStatusFilter { all, unread, reading, read }
 
 extension ReadingStatusFilterExtension on ReadingStatusFilter {
@@ -36,6 +38,21 @@ extension ReadingStatusFilterExtension on ReadingStatusFilter {
         return 'Kesken';
       case ReadingStatusFilter.read:
         return 'Luettu';
+    }
+  }
+}
+
+extension BookContentFilterExtension on BookContentFilter {
+  String get label {
+    switch (this) {
+      case BookContentFilter.all:
+        return 'Kaikki';
+      case BookContentFilter.rated:
+        return 'Arvioidut';
+      case BookContentFilter.unrated:
+        return 'Arvioimattomat';
+      case BookContentFilter.hasNotes:
+        return 'Sisältää muistiinpanon';
     }
   }
 }
@@ -72,6 +89,24 @@ class _HomeScreenState extends State<HomeScreen> {
   BookSortOption _selectedSortOption = BookSortOption.custom;
 
   ReadingStatusFilter _selectedReadingStatusFilter = ReadingStatusFilter.all;
+
+  BookContentFilter _selectedBookContentFilter = BookContentFilter.all;
+
+  bool _matchesBookContentFilter(Book book) {
+    switch (_selectedBookContentFilter) {
+      case BookContentFilter.all:
+        return true;
+
+      case BookContentFilter.rated:
+        return book.rating != null;
+
+      case BookContentFilter.unrated:
+        return book.rating == null;
+
+      case BookContentFilter.hasNotes:
+        return book.notes.trim().isNotEmpty;
+    }
+  }
 
   String _formatBackupDate(DateTime dateTime) {
     final localDateTime = dateTime.toLocal();
@@ -152,6 +187,10 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!_matchesReadingStatusFilter(book)) {
         return false;
       }
+
+      if (!_matchesBookContentFilter(book)) {
+        return false;
+      }
       if (normalizedQuery.isEmpty) {
         return true;
       }
@@ -208,7 +247,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool get _canReorderBooks {
     return _selectedSortOption == BookSortOption.custom &&
         searchQuery.trim().isEmpty &&
-        _selectedReadingStatusFilter == ReadingStatusFilter.all;
+        _selectedReadingStatusFilter == ReadingStatusFilter.all &&
+        _selectedBookContentFilter == BookContentFilter.all;
   }
 
   void _disabledReorder({
@@ -271,7 +311,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     : Column(
                         children: [
                           _buildShelfSelector(),
-
                           Padding(
                             padding: const EdgeInsets.only(bottom: 12),
                             child: Row(
@@ -280,28 +319,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                 const SizedBox(width: 4),
                                 _buildSortButton(),
                                 _buildReadingStatusFilterButton(),
+                                _buildBookContentFilterButton(),
                               ],
                             ),
                           ),
-
                           Expanded(child: _buildShelfContent()),
                         ],
                       ),
-                /*Column(
-                        children: [
-                          _buildShelfSelector(),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildSearchField(),
-                              ),
-                              const SizedBox(width: 8),
-                              _buildSortButton(),
-                            ],
-                          ),
-                          Expanded(child: _buildShelfContent()),
-                        ],
-                      ),*/
               ),
               if (!isKeyboardVisible) ...[
                 const SizedBox(height: 16),
@@ -1362,8 +1386,11 @@ class _HomeScreenState extends State<HomeScreen> {
       return _buildNoSearchResults();
     }
 
-    if (visibleBooks.isEmpty &&
-        _selectedReadingStatusFilter != ReadingStatusFilter.all) {
+    final hasActiveFilter =
+        _selectedReadingStatusFilter != ReadingStatusFilter.all ||
+        _selectedBookContentFilter != BookContentFilter.all;
+
+    if (visibleBooks.isEmpty && hasActiveFilter) {
       return _buildNoFilteredBooks();
     }
 
@@ -1446,6 +1473,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildNoFilteredBooks() {
+    final activeFilters = <String>[];
+
+    if (_selectedReadingStatusFilter != ReadingStatusFilter.all) {
+      activeFilters.add('Lukutila: ${_selectedReadingStatusFilter.label}');
+    }
+
+    if (_selectedBookContentFilter != BookContentFilter.all) {
+      activeFilters.add('Rajaus: ${_selectedBookContentFilter.label}');
+    }
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -1457,19 +1494,20 @@ class _HomeScreenState extends State<HomeScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Lukutila: ${_selectedReadingStatusFilter.label}',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 6),
+            if (activeFilters.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(activeFilters.join('\n'), textAlign: TextAlign.center),
+            ],
+            const SizedBox(height: 8),
             TextButton(
               onPressed: () {
                 setState(() {
                   _selectedReadingStatusFilter = ReadingStatusFilter.all;
+
+                  _selectedBookContentFilter = BookContentFilter.all;
                 });
               },
-              child: const Text('Näytä kaikki'),
+              child: const Text('Poista suodatukset'),
             ),
           ],
         ),
@@ -1654,6 +1692,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _selectedSortOption = BookSortOption.custom;
 
         _selectedReadingStatusFilter = ReadingStatusFilter.all;
+        _selectedBookContentFilter = BookContentFilter.all;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1689,5 +1728,29 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     }
+  }
+
+  Widget _buildBookContentFilterButton() {
+    final isFilterActive = _selectedBookContentFilter != BookContentFilter.all;
+
+    return PopupMenuButton<BookContentFilter>(
+      tooltip: 'Suodata arvion tai muistiinpanon mukaan',
+      initialValue: _selectedBookContentFilter,
+      onSelected: (filter) {
+        setState(() {
+          _selectedBookContentFilter = filter;
+        });
+      },
+      itemBuilder: (context) {
+        return BookContentFilter.values.map((filter) {
+          return CheckedPopupMenuItem<BookContentFilter>(
+            value: filter,
+            checked: filter == _selectedBookContentFilter,
+            child: Text(filter.label),
+          );
+        }).toList();
+      },
+      icon: Icon(isFilterActive ? Icons.bookmark : Icons.bookmark_border),
+    );
   }
 }
