@@ -12,50 +12,7 @@ import 'barcode_scanner_screen.dart';
 import 'book_details_screen.dart';
 import '../services/backup_export_service.dart';
 import '../services/backup_import_service.dart';
-
-enum BookSortOption {
-  custom,
-  titleAscending,
-  titleDescending,
-  authorAscending,
-  authorDescending,
-  ratingDescending,
-  ratingAscending,
-}
-
-enum BookContentFilter { all, rated, unrated, hasNotes }
-
-enum ReadingStatusFilter { all, unread, reading, read }
-
-extension ReadingStatusFilterExtension on ReadingStatusFilter {
-  String get label {
-    switch (this) {
-      case ReadingStatusFilter.all:
-        return 'Kaikki';
-      case ReadingStatusFilter.unread:
-        return 'Lukematta';
-      case ReadingStatusFilter.reading:
-        return 'Kesken';
-      case ReadingStatusFilter.read:
-        return 'Luettu';
-    }
-  }
-}
-
-extension BookContentFilterExtension on BookContentFilter {
-  String get label {
-    switch (this) {
-      case BookContentFilter.all:
-        return 'Kaikki';
-      case BookContentFilter.rated:
-        return 'Arvioidut';
-      case BookContentFilter.unrated:
-        return 'Arvioimattomat';
-      case BookContentFilter.hasNotes:
-        return 'Sisältää muistiinpanon';
-    }
-  }
-}
+import '../utils/book_query.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -92,22 +49,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   BookContentFilter _selectedBookContentFilter = BookContentFilter.all;
 
-  bool _matchesBookContentFilter(Book book) {
-    switch (_selectedBookContentFilter) {
-      case BookContentFilter.all:
-        return true;
-
-      case BookContentFilter.rated:
-        return book.rating != null;
-
-      case BookContentFilter.unrated:
-        return book.rating == null;
-
-      case BookContentFilter.hasNotes:
-        return book.notes.trim().isNotEmpty;
-    }
-  }
-
   String _formatBackupDate(DateTime dateTime) {
     final localDateTime = dateTime.toLocal();
 
@@ -124,23 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return '$day.$month.$year klo $hour:$minute';
   }
 
-  bool _matchesReadingStatusFilter(Book book) {
-    switch (_selectedReadingStatusFilter) {
-      case ReadingStatusFilter.all:
-        return true;
-
-      case ReadingStatusFilter.unread:
-        return book.readingStatus == ReadingStatus.unread;
-
-      case ReadingStatusFilter.reading:
-        return book.readingStatus == ReadingStatus.reading;
-
-      case ReadingStatusFilter.read:
-        return book.readingStatus == ReadingStatus.read;
-    }
-  }
-
-  int _compareBooksByRating(
+  /*int _compareBooksByRating(
     Book firstBook,
     Book secondBook, {
     required bool descending,
@@ -178,70 +103,17 @@ class _HomeScreenState extends State<HomeScreen> {
     return firstBook.title.toLowerCase().compareTo(
       secondBook.title.toLowerCase(),
     );
-  }
+  }*/
 
   List<Book> get visibleBooks {
-    final normalizedQuery = searchQuery.trim().toLowerCase();
-
-    final filteredBooks = selectedShelfBooks.where((book) {
-      if (!_matchesReadingStatusFilter(book)) {
-        return false;
-      }
-
-      if (!_matchesBookContentFilter(book)) {
-        return false;
-      }
-      if (normalizedQuery.isEmpty) {
-        return true;
-      }
-
-      final title = book.title.toLowerCase();
-      final author = book.author.toLowerCase();
-      final isbn = (book.isbn ?? '').toLowerCase();
-
-      return title.contains(normalizedQuery) ||
-          author.contains(normalizedQuery) ||
-          isbn.contains(normalizedQuery);
-    }).toList();
-
-    filteredBooks.sort((firstBook, secondBook) {
-      switch (_selectedSortOption) {
-        case BookSortOption.titleAscending:
-          return firstBook.title.toLowerCase().compareTo(
-            secondBook.title.toLowerCase(),
-          );
-
-        case BookSortOption.titleDescending:
-          return secondBook.title.toLowerCase().compareTo(
-            firstBook.title.toLowerCase(),
-          );
-
-        case BookSortOption.authorAscending:
-          return firstBook.author.toLowerCase().compareTo(
-            secondBook.author.toLowerCase(),
-          );
-
-        case BookSortOption.authorDescending:
-          return secondBook.author.toLowerCase().compareTo(
-            firstBook.author.toLowerCase(),
-          );
-
-        case BookSortOption.custom:
-          return 0;
-
-        case BookSortOption.ratingDescending:
-          return _compareBooksByRating(firstBook, secondBook, descending: true);
-
-        case BookSortOption.ratingAscending:
-          return _compareBooksByRating(
-            firstBook,
-            secondBook,
-            descending: false,
-          );
-      }
-    });
-
-    return filteredBooks;
+    return queryBooks(
+      books: books,
+      shelfId: selectedShelfId,
+      searchQuery: searchQuery,
+      sortOption: _selectedSortOption,
+      readingStatusFilter: _selectedReadingStatusFilter,
+      contentFilter: _selectedBookContentFilter,
+    );
   }
 
   bool get _canReorderBooks {
