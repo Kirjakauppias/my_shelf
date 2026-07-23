@@ -13,6 +13,7 @@ import '../services/backup_export_service.dart';
 import '../services/backup_import_service.dart';
 import '../utils/book_query.dart';
 import '../widgets/book_cover_shelf.dart';
+import '../services/custom_cover_service.dart';
 
 enum BookViewMode { covers, spines }
 
@@ -55,6 +56,8 @@ class _HomeScreenState extends State<HomeScreen> {
   ReadingStatusFilter _selectedReadingStatusFilter = ReadingStatusFilter.all;
 
   BookContentFilter _selectedBookContentFilter = BookContentFilter.all;
+
+  final CustomCoverService _customCoverService = CustomCoverService();
 
   String _formatBackupDate(DateTime dateTime) {
     final localDateTime = dateTime.toLocal();
@@ -588,6 +591,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _updateBook(Book updatedBook) async {
     final bookIndex = books.indexWhere((book) => book.id == updatedBook.id);
 
+    final previousBook = books[bookIndex]; // Päivitetty
+    final previousCustomCover = // Päivitetty
+        previousBook.customCoverFileName;
+
     if (bookIndex == -1) {
       return;
     }
@@ -597,6 +604,16 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     await _saveBooks();
+
+    // Päivitetty
+    if (previousCustomCover != null &&
+        previousCustomCover != updatedBook.customCoverFileName) {
+      try {
+        await _customCoverService.deleteCover(previousCustomCover);
+      } catch (error) {
+        debugPrint('Vanhan kansikuvan poistaminen epäonnistui: $error');
+      }
+    }
 
     if (!mounted) {
       return;
@@ -619,6 +636,12 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     await _saveBooks();
+
+    try {
+      await _customCoverService.deleteCover(book.customCoverFileName);
+    } catch (error) {
+      debugPrint('Kirjan kansikuvan poistaminen epäonnistui: $error');
+    }
 
     if (!mounted) {
       return;

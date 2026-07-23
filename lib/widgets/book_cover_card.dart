@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/book.dart';
 import 'reading_status_badge.dart';
+import 'book_cover_image.dart';
 
 class BookCoverCard extends StatelessWidget {
   final Book book;
@@ -92,9 +93,6 @@ class BookCoverCard extends StatelessWidget {
     bool isDragging = false,
     bool isDropTarget = false,
   }) {
-    final coverUrl = book.coverUrl?.trim();
-    final hasCover = coverUrl != null && coverUrl.isNotEmpty;
-
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
       decoration: BoxDecoration(
@@ -120,16 +118,7 @@ class BookCoverCard extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (hasCover)
-            Image.network(
-              coverUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return _buildFallbackCover(context);
-              },
-            )
-          else
-            _buildFallbackCover(context),
+          BookCoverImage(book: book, fit: BoxFit.cover),
 
           if (showReadingStatusBadge)
             Positioned(
@@ -187,7 +176,7 @@ class BookCoverCard extends StatelessWidget {
     );*/
   }
 
-  Widget _buildFallbackCover(BuildContext context) {
+  /*Widget _buildFallbackCover(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final titleWidth = constraints.maxWidth > 20
@@ -248,5 +237,5 @@ class BookCoverCard extends StatelessWidget {
         );
       },
     );
-  }
+  }*/
 }

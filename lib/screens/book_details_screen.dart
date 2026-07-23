@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../models/book.dart';
 import '../dialogs/manual_book_dialog.dart';
+import '../services/custom_cover_service.dart';
+import '../widgets/book_cover_image.dart';
 
 class BookDetailsResult {
   final bool deleted;
@@ -18,16 +20,16 @@ class BookDetailsResult {
 class BookDetailsScreen extends StatelessWidget {
   final Book book;
 
+  static final CustomCoverService _customCoverService = CustomCoverService();
+
   const BookDetailsScreen({super.key, required this.book});
 
   void _closeWithResult(BuildContext context, BookDetailsResult result) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!context.mounted) {
-        return;
-      }
+    if (!context.mounted) {
+      return;
+    }
 
-      Navigator.of(context).pop(result);
-    });
+    Navigator.of(context).pop(result);
   }
 
   IconData _readingStatusIcon(ReadingStatus status) {
@@ -248,6 +250,94 @@ class BookDetailsScreen extends StatelessWidget {
     _closeWithResult(context, BookDetailsResult.updated(updatedBook));
   }
 
+  Future<void> _changeCover(BuildContext context) async {
+    final action = await showModalBottomSheet<_CoverAction>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: Text(
+                  book.customCoverFileName == null
+                      ? 'Valitse oma kansikuva'
+                      : 'Vaihda oma kansikuva',
+                ),
+                subtitle: const Text('Valitse kuva laitteen galleriasta'),
+                onTap: () {
+                  Navigator.of(
+                    sheetContext,
+                  ).pop(_CoverAction.chooseFromGallery);
+                },
+              ),
+              if (book.customCoverFileName != null)
+                ListTile(
+                  leading: const Icon(Icons.restore),
+                  title: Text(
+                    book.coverUrl?.trim().isNotEmpty == true
+                        ? 'Palauta verkkokansi'
+                        : 'Poista oma kansikuva',
+                  ),
+                  subtitle: Text(
+                    book.coverUrl?.trim().isNotEmpty == true
+                        ? 'Kirjalle haettu alkuperäinen kansi otetaan käyttöön'
+                        : 'Kirjalle näytetään automaattinen varakansi',
+                  ),
+                  onTap: () {
+                    Navigator.of(
+                      sheetContext,
+                    ).pop(_CoverAction.removeCustomCover);
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (action == null || !context.mounted) {
+      return;
+    }
+
+    switch (action) {
+      case _CoverAction.chooseFromGallery:
+        await _chooseCoverFromGallery(context);
+        break;
+
+      case _CoverAction.removeCustomCover:
+        final updatedBook = book.copyWith(clearCustomCover: true);
+
+        _closeWithResult(context, BookDetailsResult.updated(updatedBook));
+        break;
+    }
+  }
+
+  Future<void> _chooseCoverFromGallery(BuildContext context) async {
+    try {
+      final fileName = await _customCoverService.pickAndSaveFromGallery(
+        bookId: book.id,
+      );
+
+      if (fileName == null || !context.mounted) {
+        return;
+      }
+
+      final updatedBook = book.copyWith(customCoverFileName: fileName);
+
+      _closeWithResult(context, BookDetailsResult.updated(updatedBook));
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kansikuvan tallentaminen epäonnistui.')),
+      );
+    }
+  }
+
   Future<void> _editBook(BuildContext context) async {
     final updatedBook = await showDialog<Book>(
       context: context,
@@ -273,7 +363,12 @@ class BookDetailsScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _BookCover(coverUrl: book.coverUrl),
+              _BookCover(
+                book: book,
+                onChangeCover: () {
+                  _changeCover(context);
+                },
+              ),
               const SizedBox(height: 24),
               Text(
                 book.title,
@@ -429,51 +524,42 @@ class BookDetailsScreen extends StatelessWidget {
   }
 }
 
-class _BookCover extends StatelessWidget {
-  final String? coverUrl;
+enum _CoverAction { chooseFromGallery, removeCustomCover }
 
-  const _BookCover({required this.coverUrl});
+class _BookCover extends StatelessWidget {
+  final Book book;
+  final VoidCallback onChangeCover;
+
+  const _BookCover({required this.book, required this.onChangeCover});
 
   @override
   Widget build(BuildContext context) {
-    if (coverUrl == null) {
-      return Center(
-        child: Container(
-          width: 150,
-          height: 220,
-          decoration: BoxDecoration(
-            color: const Color(0xFFE8DDD3),
+    return Column(
+      children: [
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onChangeCover,
             borderRadius: BorderRadius.circular(12),
-          ),
-          alignment: Alignment.center,
-          child: const Icon(
-            Icons.menu_book,
-            size: 64,
-            color: Color(0xFF6D4C41),
-          ),
-        ),
-      );
-    }
-
-    return Center(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.network(
-          coverUrl!,
-          width: 150,
-          height: 220,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
+            child: BookCoverImage(
+              book: book,
               width: 150,
               height: 220,
-              color: const Color(0xFFE8DDD3),
-              alignment: Alignment.center,
-              child: const Icon(Icons.broken_image_outlined, size: 56),
-            );
-          },
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
         ),
-      ),
+        const SizedBox(height: 8),
+        TextButton.icon(
+          onPressed: onChangeCover,
+          icon: const Icon(Icons.image_outlined),
+          label: Text(
+            book.customCoverFileName == null
+                ? 'Valitse oma kansikuva'
+                : 'Vaihda kansikuva',
+          ),
+        ),
+      ],
     );
   }
 }
