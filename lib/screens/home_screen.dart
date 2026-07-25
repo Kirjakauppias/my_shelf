@@ -59,6 +59,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final CustomCoverService _customCoverService = CustomCoverService();
 
+  bool _isShelfFullscreen = false;
+
   String _formatBackupDate(DateTime dateTime) {
     final localDateTime = dateTime.toLocal();
 
@@ -74,46 +76,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return '$day.$month.$year klo $hour:$minute';
   }
-
-  /*int _compareBooksByRating(
-    Book firstBook,
-    Book secondBook, {
-    required bool descending,
-  }) {
-    final firstRating = firstBook.rating;
-    final secondRating = secondBook.rating;
-
-    // Molemmat kirjat ovat arvioimattomia.
-    // Järjestetään ne keskenään nimen mukaan.
-    if (firstRating == null && secondRating == null) {
-      return firstBook.title.toLowerCase().compareTo(
-        secondBook.title.toLowerCase(),
-      );
-    }
-
-    // Arvioimattomat kirjat sijoitetaan aina loppuun.
-    if (firstRating == null) {
-      return 1;
-    }
-
-    if (secondRating == null) {
-      return -1;
-    }
-
-    final ratingComparison = descending
-        ? secondRating.compareTo(firstRating)
-        : firstRating.compareTo(secondRating);
-
-    // Jos arvosanat eroavat, käytetään arvosanojen järjestystä.
-    if (ratingComparison != 0) {
-      return ratingComparison;
-    }
-
-    // Saman arvosanan saaneet kirjat järjestetään nimen mukaan.
-    return firstBook.title.toLowerCase().compareTo(
-      secondBook.title.toLowerCase(),
-    );
-  }*/
 
   List<Book> get visibleBooks {
     return queryBooks(
@@ -140,6 +102,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _disabledMoveToEnd(Book draggedBook) {}
 
+  void _openShelfFullscreen() {
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      _isShelfFullscreen = true;
+    });
+  }
+
+  void _closeShelfFullscreen() {
+    setState(() {
+      _isShelfFullscreen = false;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -148,12 +124,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isShelfFullscreen) {
+      return _buildFullscreenShelf();
+    }
+
     final isKeyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          padding: const EdgeInsets.fromLTRB(8, 58, 8, 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -1926,6 +1906,12 @@ class _HomeScreenState extends State<HomeScreen> {
             },
             icon: const Icon(Icons.search),
           ),
+          const SizedBox(width: 4),
+          IconButton.filledTonal(
+            tooltip: 'Avaa kirjahylly koko näytölle',
+            onPressed: _openShelfFullscreen,
+            icon: const Icon(Icons.fullscreen),
+          ),
         ],
       ),
     );
@@ -1964,5 +1950,187 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (error) {
       debugPrint('Kansikuvatiedoston poistaminen epäonnistui: $error');
     }
+  }
+
+  Widget _buildFullscreenShelf() {
+    final selectedShelf = shelves.firstWhere(
+      (shelf) => shelf.id == selectedShelfId,
+      orElse: () => defaultShelf,
+    );
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          _closeShelfFullscreen();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+            child: Column(
+              children: [
+                _buildFullscreenHeader(shelfName: selectedShelf.name),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _buildShelfContent(),
+                ),
+              ],
+            ),
+          ),
+        ),
+        floatingActionButton: FloatingActionButton(
+          tooltip: 'Skannaa kirja',
+          onPressed: _openBarcodeScanner,
+          child: const Icon(Icons.qr_code_scanner),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFullscreenHeader({required String shelfName}) {
+    final theme = Theme.of(context);
+
+    return SizedBox(
+      height: 64,
+      child: Row(
+        children: [
+          _FullscreenButton(
+            tooltip: 'Poistu koko näytön tilasta',
+            icon: Icons.arrow_back,
+            onPressed: _closeShelfFullscreen,
+          ),
+          const SizedBox(width: 10),
+
+          Expanded(
+            child: Center(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 280),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 22,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE2C092),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF7A482A), width: 2),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x30000000),
+                      blurRadius: 5,
+                      offset: Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  shelfName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: const Color(0xFF4A2919),
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 10),
+
+          PopupMenuButton<String>(
+            tooltip: 'Kirjahyllyn asetukset',
+            onSelected: (value) {
+              switch (value) {
+                case 'covers':
+                  setState(() {
+                    _bookViewMode = BookViewMode.covers;
+                  });
+                  break;
+
+                case 'spines':
+                  setState(() {
+                    _bookViewMode = BookViewMode.spines;
+                  });
+                  break;
+
+                case 'reading-status':
+                  setState(() {
+                    _showReadingStatusBadges = !_showReadingStatusBadges;
+                  });
+                  break;
+              }
+            },
+            itemBuilder: (context) {
+              return [
+                CheckedPopupMenuItem<String>(
+                  value: 'covers',
+                  checked: _bookViewMode == BookViewMode.covers,
+                  child: const Text('Kansikuvat'),
+                ),
+                CheckedPopupMenuItem<String>(
+                  value: 'spines',
+                  checked: _bookViewMode == BookViewMode.spines,
+                  child: const Text('Selkämykset'),
+                ),
+                const PopupMenuDivider(),
+                CheckedPopupMenuItem<String>(
+                  value: 'reading-status',
+                  checked: _showReadingStatusBadges,
+                  child: const Text('Näytä lukutilatunnisteet'),
+                ),
+              ];
+            },
+            child: const _FullscreenButtonVisual(icon: Icons.more_vert),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FullscreenButton extends StatelessWidget {
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  const _FullscreenButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
+        elevation: 4,
+        shape: const CircleBorder(),
+        child: IconButton(onPressed: onPressed, icon: Icon(icon)),
+      ),
+    );
+  }
+}
+
+class _FullscreenButtonVisual extends StatelessWidget {
+  final IconData icon;
+
+  const _FullscreenButtonVisual({required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
+      elevation: 4,
+      shape: const CircleBorder(),
+      child: Padding(padding: const EdgeInsets.all(12), child: Icon(icon)),
+    );
   }
 }

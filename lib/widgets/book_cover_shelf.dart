@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/book.dart';
 import 'book_cover_card.dart';
+import 'shelf_board.dart';
 
 class BookCoverShelf extends StatelessWidget {
   final List<Book> books;
@@ -25,23 +26,34 @@ class BookCoverShelf extends StatelessWidget {
     required this.onReorder,
   });
 
-  static const double _horizontalSpacing = 10;
-  static const double _coverAspectRatio = 0.66;
+  static const double _horizontalSpacing = 8;
+  static const double _coverAspectRatio = 0.67;
+  static const double _rowSpacing = 16;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
+      padding: const EdgeInsets.fromLTRB(10, 12, 10, 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFE2C69F),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF8A5634), width: 4),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFEBD8BC), Color(0xFFDFC19B), Color(0xFFD3AD80)],
+          stops: [0, 0.55, 1],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF805033), width: 3),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x28000000),
-            blurRadius: 9,
+            color: Color(0x26000000),
+            blurRadius: 10,
             offset: Offset(0, 5),
+          ),
+          BoxShadow(
+            color: Color(0x22FFFFFF),
+            blurRadius: 2,
+            offset: Offset(0, -1),
           ),
         ],
       ),
@@ -49,7 +61,8 @@ class BookCoverShelf extends StatelessWidget {
         builder: (context, constraints) {
           final availableWidth = constraints.maxWidth;
 
-          // Estää negatiiviset mitat väliaikaisissa layout-tilanteissa.
+          // Layout voi saada hetkellisesti nollan levyisen tilan
+          // esimerkiksi näkymää vaihdettaessa.
           if (!availableWidth.isFinite || availableWidth <= 0) {
             return const SizedBox.shrink();
           }
@@ -58,7 +71,13 @@ class BookCoverShelf extends StatelessWidget {
 
           final totalSpacing = (columnCount - 1) * _horizontalSpacing;
 
-          final coverWidth = (availableWidth - totalSpacing) / columnCount;
+          final usableCoverWidth = availableWidth - totalSpacing;
+
+          if (usableCoverWidth <= 0) {
+            return const SizedBox.shrink();
+          }
+
+          final coverWidth = usableCoverWidth / columnCount;
 
           if (coverWidth <= 0) {
             return const SizedBox.shrink();
@@ -69,10 +88,10 @@ class BookCoverShelf extends StatelessWidget {
           final rows = _createRows(books, columnCount);
 
           return ListView.separated(
-            padding: EdgeInsets.zero,
+            padding: const EdgeInsets.only(bottom: 8),
             itemCount: rows.length,
             separatorBuilder: (context, index) {
-              return const SizedBox(height: 14);
+              return const SizedBox(height: _rowSpacing);
             },
             itemBuilder: (context, rowIndex) {
               final rowBooks = rows[rowIndex];
@@ -106,6 +125,7 @@ class BookCoverShelf extends StatelessWidget {
                       ],
                     ),
                   ),
+
                   if (isLastRow && canReorder)
                     DragTarget<Book>(
                       onWillAcceptWithDetails: (details) {
@@ -115,13 +135,13 @@ class BookCoverShelf extends StatelessWidget {
                         onMoveToEnd(details.data);
                       },
                       builder: (context, candidateData, rejectedData) {
-                        return _buildShelfBoard(
+                        return ShelfBoard(
                           highlighted: candidateData.isNotEmpty,
                         );
                       },
                     )
                   else
-                    _buildShelfBoard(),
+                    const ShelfBoard(),
                 ],
               );
             },
@@ -155,7 +175,7 @@ class BookCoverShelf extends StatelessWidget {
     final rows = <List<Book>>[];
 
     for (var index = 0; index < books.length; index += columnCount) {
-      final endIndex = (index + columnCount < books.length)
+      final endIndex = index + columnCount < books.length
           ? index + columnCount
           : books.length;
 
@@ -163,33 +183,5 @@ class BookCoverShelf extends StatelessWidget {
     }
 
     return rows;
-  }
-
-  Widget _buildShelfBoard({bool highlighted = false}) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      height: 13,
-      margin: const EdgeInsets.only(top: 4),
-      decoration: BoxDecoration(
-        color: highlighted ? const Color(0xFFB96B3E) : const Color(0xFF744126),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(3),
-          bottomRight: Radius.circular(3),
-        ),
-        border: Border.all(
-          color: highlighted
-              ? const Color(0xFFFFD2A9)
-              : const Color(0xFF4A2716),
-          width: highlighted ? 2 : 1,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x40000000),
-            blurRadius: 3,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
-    );
   }
 }
