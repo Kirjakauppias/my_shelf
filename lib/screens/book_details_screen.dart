@@ -307,6 +307,12 @@ class BookDetailsScreen extends StatelessWidget {
         break;
 
       case _CoverAction.removeCustomCover:
+        final shouldRemove = await _confirmRemoveCustomCover(context);
+
+        if (!shouldRemove || !context.mounted) {
+          return;
+        }
+
         final updatedBook = book.copyWith(clearCustomCover: true);
 
         _closeWithResult(context, BookDetailsResult.updated(updatedBook));
@@ -521,6 +527,44 @@ class BookDetailsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<bool> _confirmRemoveCustomCover(BuildContext context) async {
+    final hasNetworkCover = book.coverUrl?.trim().isNotEmpty == true;
+
+    final shouldRemove = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(
+            hasNetworkCover ? 'Palauta verkkokansi' : 'Poista oma kansikuva',
+          ),
+          content: Text(
+            hasNetworkCover
+                ? 'Haluatko poistaa itse valitsemasi kannen ja palauttaa kirjalle verkosta haetun kansikuvan?'
+                : 'Haluatko poistaa itse valitsemasi kansikuvan? Kirjalle näytetään tämän jälkeen automaattinen varakansi.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
+              },
+              child: const Text('Peruuta'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: Text(
+                hasNetworkCover ? 'Palauta verkkokansi' : 'Poista kansikuva',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    return shouldRemove ?? false;
   }
 }
 

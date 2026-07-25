@@ -49,7 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<Book> books = [];
 
   final BackupExportService _backupExportService = const BackupExportService();
-  final BackupImportService _backupImportService = const BackupImportService();
+  final BackupImportService _backupImportService = BackupImportService();
 
   BookSortOption _selectedSortOption = BookSortOption.custom;
 
@@ -591,28 +591,58 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _updateBook(Book updatedBook) async {
     final bookIndex = books.indexWhere((book) => book.id == updatedBook.id);
 
-    final previousBook = books[bookIndex]; // Päivitetty
-    final previousCustomCover = // Päivitetty
-        previousBook.customCoverFileName;
-
     if (bookIndex == -1) {
       return;
     }
+
+    final previousBook = books[bookIndex];
+
+    final previousCustomCover = previousBook.customCoverFileName;
+
+    final newCustomCover = updatedBook.customCoverFileName;
 
     setState(() {
       books[bookIndex] = updatedBook;
     });
 
-    await _saveBooks();
+    try {
+      await _saveBooks();
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          final rollbackIndex = books.indexWhere(
+            (book) => book.id == previousBook.id,
+          );
 
-    // Päivitetty
-    if (previousCustomCover != null &&
-        previousCustomCover != updatedBook.customCoverFileName) {
-      try {
-        await _customCoverService.deleteCover(previousCustomCover);
-      } catch (error) {
-        debugPrint('Vanhan kansikuvan poistaminen epäonnistui: $error');
+          if (rollbackIndex != -1) {
+            books[rollbackIndex] = previousBook;
+          }
+        });
       }
+
+      // Uusi kuva ehdittiin tallentaa ennen Book-tietojen
+      // tallentamista. Poistetaan se, jos päivitys epäonnistui.
+      if (newCustomCover != null && newCustomCover != previousCustomCover) {
+        await _deleteCustomCoverQuietly(newCustomCover);
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Kirjan muutosten tallentaminen epäonnistui.'),
+        ),
+      );
+
+      return;
+    }
+
+    // Kirjan uusi versio on tallennettu turvallisesti.
+    // Vanhaa omaa kantta ei enää tarvita.
+    if (previousCustomCover != null && previousCustomCover != newCustomCover) {
+      await _deleteCustomCoverQuietly(previousCustomCover);
     }
 
     if (!mounted) {
@@ -631,24 +661,42 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
+    final removedBook = books[bookIndex];
+
     setState(() {
       books.removeAt(bookIndex);
     });
 
-    await _saveBooks();
-
     try {
-      await _customCoverService.deleteCover(book.customCoverFileName);
+      await _saveBooks();
     } catch (error) {
-      debugPrint('Kirjan kansikuvan poistaminen epäonnistui: $error');
+      if (mounted) {
+        setState(() {
+          final restoreIndex = bookIndex <= books.length
+              ? bookIndex
+              : books.length;
+
+          books.insert(restoreIndex, removedBook);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Kirjan poistaminen epäonnistui.')),
+        );
+      }
+
+      return;
     }
+
+    await _deleteCustomCoverQuietly(removedBook.customCoverFileName);
 
     if (!mounted) {
       return;
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${book.title} poistettiin kirjahyllystä.')),
+      SnackBar(
+        content: Text('${removedBook.title} poistettiin kirjahyllystä.'),
+      ),
     );
   }
 
@@ -1903,6 +1951,18 @@ class _HomeScreenState extends State<HomeScreen> {
           onMoveToEnd: _canReorderBooks ? _moveBookToEnd : _disabledMoveToEnd,
           onBookTap: _openBookActions,
         );
+    }
+  }
+
+  Future<void> _deleteCustomCoverQuietly(String? fileName) async {
+    if (fileName == null || fileName.trim().isEmpty) {
+      return;
+    }
+
+    try {
+      await _customCoverService.deleteCover(fileName);
+    } catch (error) {
+      debugPrint('Kansikuvatiedoston poistaminen epäonnistui: $error');
     }
   }
 }
