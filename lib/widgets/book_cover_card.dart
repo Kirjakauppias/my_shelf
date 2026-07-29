@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../models/book.dart';
-import 'reading_status_badge.dart';
 import 'book_cover_image.dart';
+import 'reading_status_badge.dart';
 
-class BookCoverCard extends StatelessWidget {
+class BookCoverCard extends StatefulWidget {
   final Book book;
   final VoidCallback onTap;
 
@@ -24,40 +24,66 @@ class BookCoverCard extends StatelessWidget {
   });
 
   @override
+  State<BookCoverCard> createState() => _BookCoverCardState();
+}
+
+class _BookCoverCardState extends State<BookCoverCard> {
+  bool _isPressed = false;
+
+  void _setPressed(bool value) {
+    if (_isPressed == value) {
+      return;
+    }
+
+    setState(() {
+      _isPressed = value;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (!canReorder) {
+        if (!widget.canReorder) {
           return _buildInteractiveCover(context);
         }
 
         return DragTarget<Book>(
           onWillAcceptWithDetails: (details) {
-            return details.data != book;
+            return details.data != widget.book;
           },
           onAcceptWithDetails: (details) {
-            onReorder(draggedBook: details.data, targetBook: book);
+            widget.onReorder(
+              draggedBook: details.data,
+              targetBook: widget.book,
+            );
           },
           builder: (context, candidateData, rejectedData) {
             final isDropTarget = candidateData.isNotEmpty;
 
             return LongPressDraggable<Book>(
-              data: book,
+              data: widget.book,
               delay: const Duration(milliseconds: 300),
               hapticFeedbackOnStart: true,
+              onDragStarted: () {
+                _setPressed(false);
+              },
               feedback: Material(
                 color: Colors.transparent,
                 child: SizedBox(
                   width: constraints.maxWidth,
                   height: constraints.maxHeight,
-                  child: Transform.scale(
-                    scale: 1.04,
-                    child: _buildCoverVisual(context, isDragging: true),
+                  child: Transform.rotate(
+                    angle: -0.025,
+                    child: Transform.scale(
+                      scale: 1.055,
+                      child: _buildCoverVisual(context, isDragging: true),
+                    ),
                   ),
                 ),
               ),
               childWhenDragging: Opacity(
-                opacity: 0.25,
+                opacity: 0.18,
                 child: _buildInteractiveCover(context),
               ),
               child: _buildInteractiveCover(
@@ -77,12 +103,35 @@ class BookCoverCard extends StatelessWidget {
   }) {
     return Semantics(
       button: true,
-      label: '${book.title}, ${book.author}',
+      label: '${widget.book.title}, ${widget.book.author}',
       child: Tooltip(
-        message: '${book.title}\n${book.author}',
-        child: GestureDetector(
-          onTap: onTap,
-          child: _buildCoverVisual(context, isDropTarget: isDropTarget),
+        message:
+            '${widget.book.title}\n'
+            '${widget.book.author}',
+        child: Listener(
+          onPointerDown: (_) {
+            _setPressed(true);
+          },
+          onPointerUp: (_) {
+            _setPressed(false);
+          },
+          onPointerCancel: (_) {
+            _setPressed(false);
+          },
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onTap,
+            child: AnimatedScale(
+              scale: _isPressed ? 0.975 : 1,
+              duration: const Duration(milliseconds: 100),
+              curve: Curves.easeOut,
+              child: _buildCoverVisual(
+                context,
+                isPressed: _isPressed,
+                isDropTarget: isDropTarget,
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -90,27 +139,39 @@ class BookCoverCard extends StatelessWidget {
 
   Widget _buildCoverVisual(
     BuildContext context, {
+    bool isPressed = false,
     bool isDragging = false,
     bool isDropTarget = false,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
+      duration: const Duration(milliseconds: 170),
+      curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
-        color: book.spineColor,
-        borderRadius: BorderRadius.circular(7),
+        color: widget.book.spineColor,
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(
-          color: isDropTarget
-              ? Theme.of(context).colorScheme.primary
-              : Colors.black26,
-          width: isDropTarget ? 3 : 1,
+          color: isDropTarget ? colorScheme.primary : const Color(0x44000000),
+          width: isDropTarget ? 2.5 : 0.8,
         ),
         boxShadow: [
           BoxShadow(
             color: isDragging
-                ? const Color(0x55000000)
-                : const Color(0x35000000),
-            blurRadius: isDragging ? 12 : 5,
-            offset: isDragging ? const Offset(5, 7) : const Offset(2, 3),
+                ? const Color(0x60000000)
+                : isPressed
+                ? const Color(0x24000000)
+                : const Color(0x3D000000),
+            blurRadius: isDragging
+                ? 14
+                : isPressed
+                ? 2
+                : 6,
+            offset: isDragging
+                ? const Offset(6, 9)
+                : isPressed
+                ? const Offset(1, 2)
+                : const Offset(2, 4),
           ),
         ],
       ),
@@ -118,124 +179,64 @@ class BookCoverCard extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          BookCoverImage(book: book, fit: BoxFit.cover),
+          BookCoverImage(book: widget.book, fit: BoxFit.cover),
 
-          if (showReadingStatusBadge)
-            Positioned(
-              top: 5,
-              right: 5,
-              child: ReadingStatusBadge(status: book.readingStatus),
-            ),
-        ],
-      ),
-    );
-    /*return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      decoration: BoxDecoration(
-        color: book.spineColor,
-        borderRadius: BorderRadius.circular(7),
-        border: Border.all(
-          color: isDropTarget
-              ? Theme.of(context).colorScheme.primary
-              : Colors.black26,
-          width: isDropTarget ? 3 : 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: isDragging
-                ? const Color(0x55000000)
-                : const Color(0x35000000),
-            blurRadius: isDragging ? 12 : 5,
-            offset: isDragging ? const Offset(5, 7) : const Offset(2, 3),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (hasCover)
-            Image.network(
-              coverUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return _buildFallbackCover(context);
-              },
-            )
-          else
-            _buildFallbackCover(context),
-
-          if (showReadingStatusBadge)
-            Positioned(
-              top: 5,
-              right: 5,
-              child: ReadingStatusBadge(status: book.readingStatus),
-            ),
-        ],
-      ),
-    );*/
-  }
-
-  /*Widget _buildFallbackCover(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final titleWidth = constraints.maxWidth > 20
-            ? constraints.maxWidth - 20
-            : 1.0;
-
-        return Container(
-          padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
-          decoration: BoxDecoration(
-            color: book.spineColor,
-            border: const Border(
-              left: BorderSide(color: Colors.black26, width: 4),
-            ),
-          ),
-          child: Column(
-            children: [
-              const Icon(
-                Icons.auto_stories_outlined,
-                color: Colors.white70,
-                size: 21,
+          // Hienovarainen valo vasemmassa yläkulmassa ja
+          // varjo oikeassa alakulmassa tekee kannesta fyysisemmän.
+          const IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  stops: [0, 0.38, 0.72, 1],
+                  colors: [
+                    Color(0x24FFFFFF),
+                    Color(0x08FFFFFF),
+                    Color(0x06000000),
+                    Color(0x18000000),
+                  ],
+                ),
               ),
-              const SizedBox(height: 6),
+            ),
+          ),
 
-              // Skaalaa pitkän otsikon käytettävissä olevaan tilaan.
-              Expanded(
-                child: Center(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: SizedBox(
-                      width: titleWidth,
-                      child: Text(
-                        book.title,
-                        maxLines: 4,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          height: 1.15,
-                        ),
-                      ),
-                    ),
+          // Kevyt vasemman reunan varjostus muistuttaa kirjan taitetta.
+          const Positioned(
+            top: 0,
+            bottom: 0,
+            left: 0,
+            width: 4,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [Color(0x36000000), Color(0x00000000)],
                   ),
                 ),
               ),
-
-              const SizedBox(height: 5),
-              Text(
-                book.author,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white70, fontSize: 10),
-              ),
-            ],
+            ),
           ),
-        );
-      },
+
+          if (isDropTarget)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: ColoredBox(
+                  color: colorScheme.primary.withValues(alpha: 0.10),
+                ),
+              ),
+            ),
+
+          if (widget.showReadingStatusBadge)
+            Positioned(
+              top: 5,
+              right: 5,
+              child: ReadingStatusBadge(status: widget.book.readingStatus),
+            ),
+        ],
+      ),
     );
-  }*/
+  }
 }

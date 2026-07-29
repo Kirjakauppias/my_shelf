@@ -10,6 +10,7 @@ class BookCoverShelf extends StatelessWidget {
 
   final bool canReorder;
   final bool showReadingStatusBadges;
+  final bool isFullscreen;
 
   final void Function(Book draggedBook) onMoveToEnd;
 
@@ -24,17 +25,30 @@ class BookCoverShelf extends StatelessWidget {
     required this.showReadingStatusBadges,
     required this.onMoveToEnd,
     required this.onReorder,
+    this.isFullscreen = false,
   });
 
-  static const double _horizontalSpacing = 8;
   static const double _coverAspectRatio = 0.67;
-  static const double _rowSpacing = 16;
+
+  double get _horizontalSpacing {
+    return isFullscreen ? 10 : 8;
+  }
+
+  double get _rowSpacing {
+    return isFullscreen ? 20 : 16;
+  }
+
+  EdgeInsets get _shelfPadding {
+    return isFullscreen
+        ? const EdgeInsets.fromLTRB(8, 10, 8, 10)
+        : const EdgeInsets.fromLTRB(10, 12, 10, 10);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(10, 12, 10, 10),
+      padding: _shelfPadding,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -91,7 +105,7 @@ class BookCoverShelf extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 8),
             itemCount: rows.length,
             separatorBuilder: (context, index) {
-              return const SizedBox(height: _rowSpacing);
+              return SizedBox(height: _rowSpacing);
             },
             itemBuilder: (context, rowIndex) {
               final rowBooks = rows[rowIndex];
@@ -120,7 +134,7 @@ class BookCoverShelf extends StatelessWidget {
                                 : const SizedBox.shrink(),
                           ),
                           if (index < columnCount - 1)
-                            const SizedBox(width: _horizontalSpacing),
+                            SizedBox(width: _horizontalSpacing),
                         ],
                       ],
                     ),
@@ -152,23 +166,18 @@ class BookCoverShelf extends StatelessWidget {
   }
 
   int _columnCount(double width) {
-    if (width >= 700) {
-      return 7;
-    }
+    final targetCoverWidth = isFullscreen ? 94.0 : 78.0;
 
-    if (width >= 560) {
-      return 6;
-    }
+    final calculatedColumnCount =
+        ((width + _horizontalSpacing) / (targetCoverWidth + _horizontalSpacing))
+            .floor();
 
-    if (width >= 430) {
-      return 5;
-    }
+    final minimumColumnCount = width >= 300 ? 3 : 2;
+    final maximumColumnCount = isFullscreen ? 6 : 7;
 
-    if (width >= 330) {
-      return 4;
-    }
-
-    return 3;
+    return calculatedColumnCount
+        .clamp(minimumColumnCount, maximumColumnCount)
+        .toInt();
   }
 
   List<List<Book>> _createRows(List<Book> books, int columnCount) {

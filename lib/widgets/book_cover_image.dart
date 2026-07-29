@@ -61,6 +61,11 @@ class _BookCoverImageState extends State<BookCoverImage> {
         child: FutureBuilder<File?>(
           future: _customCoverFuture,
           builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                widget.book.customCoverFileName != null) {
+              return _buildLoadingCover();
+            }
+
             final customCoverFile = snapshot.data;
 
             if (customCoverFile != null) {
@@ -86,58 +91,187 @@ class _BookCoverImageState extends State<BookCoverImage> {
   Widget _buildNetworkOrFallbackCover() {
     final coverUrl = widget.book.coverUrl?.trim();
 
-    if (coverUrl != null && coverUrl.isNotEmpty) {
-      return Image.network(
-        coverUrl,
-        width: double.infinity,
-        height: double.infinity,
-        fit: widget.fit,
-        errorBuilder: (context, error, stackTrace) {
-          return _buildFallbackCover();
-        },
-      );
+    if (coverUrl == null || coverUrl.isEmpty) {
+      return _buildFallbackCover();
     }
 
-    return _buildFallbackCover();
+    return Image.network(
+      coverUrl,
+      width: double.infinity,
+      height: double.infinity,
+      fit: widget.fit,
+      gaplessPlayback: true,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) {
+          return child;
+        }
+
+        return _buildLoadingCover(
+          progress: loadingProgress.expectedTotalBytes == null
+              ? null
+              : loadingProgress.cumulativeBytesLoaded /
+                    loadingProgress.expectedTotalBytes!,
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        return _buildFallbackCover();
+      },
+    );
+  }
+
+  Widget _buildLoadingCover({double? progress}) {
+    return Container(
+      color: const Color(0xFFE6D8C8),
+      alignment: Alignment.center,
+      child: SizedBox(
+        width: 24,
+        height: 24,
+        child: CircularProgressIndicator(
+          value: progress,
+          strokeWidth: 2,
+          color: const Color(0xFF795548),
+        ),
+      ),
+    );
   }
 
   Widget _buildFallbackCover() {
-    return Container(
-      color: widget.book.spineColor,
-      padding: const EdgeInsets.fromLTRB(9, 12, 9, 9),
-      child: Column(
-        children: [
-          const Icon(
-            Icons.auto_stories_outlined,
-            color: Colors.white70,
-            size: 24,
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: Center(
-              child: Text(
-                widget.book.title,
-                maxLines: 5,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  height: 1.15,
-                ),
-              ),
+    final baseColor = widget.book.spineColor;
+    final useLightText = baseColor.computeLuminance() < 0.42;
+
+    final foregroundColor = useLightText
+        ? Colors.white
+        : const Color(0xFF2F241E);
+
+    final secondaryColor = foregroundColor.withValues(alpha: 0.74);
+
+    final borderColor = useLightText
+        ? Colors.white.withValues(alpha: 0.48)
+        : Colors.black.withValues(alpha: 0.28);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 80;
+
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                baseColor.withValues(alpha: 0.88),
+                baseColor,
+                Color.lerp(baseColor, Colors.black, 0.18) ?? baseColor,
+              ],
+              stops: const [0, 0.56, 1],
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            widget.book.author,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white70, fontSize: 10),
+          child: Stack(
+            children: [
+              // Kirjan selkä/taitos vasemmassa reunassa.
+              Positioned(
+                top: 0,
+                bottom: 0,
+                left: 0,
+                width: isNarrow ? 4 : 6,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.30),
+                        Colors.black.withValues(alpha: 0.04),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // Hillitty koristekehys.
+              Positioned.fill(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    isNarrow ? 8 : 11,
+                    isNarrow ? 8 : 11,
+                    isNarrow ? 6 : 9,
+                    isNarrow ? 7 : 10,
+                  ),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: borderColor, width: 1),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+              ),
+
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  isNarrow ? 10 : 14,
+                  isNarrow ? 12 : 17,
+                  isNarrow ? 8 : 12,
+                  isNarrow ? 10 : 14,
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.auto_stories_outlined,
+                      size: isNarrow ? 18 : 23,
+                      color: secondaryColor,
+                    ),
+                    SizedBox(height: isNarrow ? 5 : 8),
+                    Container(
+                      width: isNarrow ? 22 : 32,
+                      height: 1,
+                      color: borderColor,
+                    ),
+                    SizedBox(height: isNarrow ? 7 : 11),
+
+                    Expanded(
+                      child: Center(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: SizedBox(
+                            width: constraints.maxWidth - (isNarrow ? 20 : 28),
+                            child: Text(
+                              widget.book.title,
+                              maxLines: isNarrow ? 5 : 6,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: foregroundColor,
+                                fontSize: isNarrow ? 13 : 16,
+                                fontWeight: FontWeight.w700,
+                                height: 1.12,
+                                letterSpacing: 0.1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(height: isNarrow ? 5 : 8),
+                    Text(
+                      widget.book.author,
+                      maxLines: isNarrow ? 1 : 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: secondaryColor,
+                        fontSize: isNarrow ? 9 : 10.5,
+                        fontWeight: FontWeight.w500,
+                        height: 1.15,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

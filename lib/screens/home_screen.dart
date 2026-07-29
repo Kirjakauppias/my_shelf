@@ -127,18 +127,34 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_isShelfFullscreen) {
       return _buildFullscreenShelf();
     }
+    final mediaQuery = MediaQuery.of(context);
 
     final isKeyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
 
+    final isLandscape = mediaQuery.orientation == Orientation.landscape;
+
     return Scaffold(
+      floatingActionButton: isLandscape && !isKeyboardVisible
+          ? FloatingActionButton(
+              mini: true,
+              tooltip: 'Skannaa kirja',
+              onPressed: _openBarcodeScanner,
+              child: const Icon(Icons.qr_code_scanner),
+            )
+          : null,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 58, 8, 8),
+          padding: EdgeInsets.fromLTRB(
+            isLandscape ? 10 : 20,
+            isLandscape ? 6 : 12,
+            isLandscape ? 10 : 20,
+            isLandscape ? 6 : 20,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildHeader(),
-              const SizedBox(height: 18),
+              SizedBox(height: isLandscape ? 8 : 18),
 
               Expanded(
                 child: _isLoading
@@ -152,7 +168,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
               ),
 
-              if (!isKeyboardVisible) ...[
+              if (!isKeyboardVisible && !isLandscape) ...[
                 const SizedBox(height: 14),
                 FilledButton.icon(
                   onPressed: _openBarcodeScanner,
@@ -1924,6 +1940,7 @@ class _HomeScreenState extends State<HomeScreen> {
           books: visibleBooks,
           canReorder: _canReorderBooks,
           showReadingStatusBadges: _showReadingStatusBadges,
+          isFullscreen: _isShelfFullscreen,
           onReorder: _reorderVisibleBooks,
           onMoveToEnd: _moveBookToEnd,
           onBookTap: _openBookActions,
