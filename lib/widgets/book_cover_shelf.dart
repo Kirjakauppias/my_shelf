@@ -30,25 +30,49 @@ class BookCoverShelf extends StatelessWidget {
 
   static const double _coverAspectRatio = 0.67;
 
-  double get _horizontalSpacing {
+  double _horizontalSpacing(Orientation orientation) {
+    if (orientation == Orientation.landscape) {
+      return isFullscreen ? 9 : 7;
+    }
+
     return isFullscreen ? 10 : 8;
   }
 
-  double get _rowSpacing {
+  double _rowSpacing(Orientation orientation) {
+    if (orientation == Orientation.landscape) {
+      return isFullscreen ? 16 : 12;
+    }
+
     return isFullscreen ? 20 : 16;
   }
 
-  EdgeInsets get _shelfPadding {
+  EdgeInsets _shelfPadding(Orientation orientation) {
+    if (orientation == Orientation.landscape) {
+      return isFullscreen
+          ? const EdgeInsets.fromLTRB(7, 8, 7, 8)
+          : const EdgeInsets.fromLTRB(8, 8, 8, 8);
+    }
+
     return isFullscreen
         ? const EdgeInsets.fromLTRB(8, 10, 8, 10)
         : const EdgeInsets.fromLTRB(10, 12, 10, 10);
   }
 
+  double _targetCoverWidth(Orientation orientation) {
+    if (orientation == Orientation.landscape) {
+      return isFullscreen ? 102 : 84;
+    }
+
+    return isFullscreen ? 96 : 78;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final orientation = MediaQuery.of(context).orientation;
+
     return Container(
       width: double.infinity,
-      padding: _shelfPadding,
+      padding: _shelfPadding(orientation),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -81,9 +105,13 @@ class BookCoverShelf extends StatelessWidget {
             return const SizedBox.shrink();
           }
 
-          final columnCount = _columnCount(availableWidth);
+          final horizontalSpacing = _horizontalSpacing(orientation);
 
-          final totalSpacing = (columnCount - 1) * _horizontalSpacing;
+          final rowSpacing = _rowSpacing(orientation);
+
+          final columnCount = _columnCount(availableWidth, orientation);
+
+          final totalSpacing = (columnCount - 1) * horizontalSpacing;
 
           final usableCoverWidth = availableWidth - totalSpacing;
 
@@ -105,7 +133,7 @@ class BookCoverShelf extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 8),
             itemCount: rows.length,
             separatorBuilder: (context, index) {
-              return SizedBox(height: _rowSpacing);
+              return SizedBox(height: rowSpacing);
             },
             itemBuilder: (context, rowIndex) {
               final rowBooks = rows[rowIndex];
@@ -134,7 +162,7 @@ class BookCoverShelf extends StatelessWidget {
                                 : const SizedBox.shrink(),
                           ),
                           if (index < columnCount - 1)
-                            SizedBox(width: _horizontalSpacing),
+                            SizedBox(width: horizontalSpacing),
                         ],
                       ],
                     ),
@@ -165,15 +193,24 @@ class BookCoverShelf extends StatelessWidget {
     );
   }
 
-  int _columnCount(double width) {
-    final targetCoverWidth = isFullscreen ? 94.0 : 78.0;
+  int _columnCount(double width, Orientation orientation) {
+    final horizontalSpacing = _horizontalSpacing(orientation);
+
+    final targetCoverWidth = _targetCoverWidth(orientation);
 
     final calculatedColumnCount =
-        ((width + _horizontalSpacing) / (targetCoverWidth + _horizontalSpacing))
+        ((width + horizontalSpacing) / (targetCoverWidth + horizontalSpacing))
             .floor();
 
-    final minimumColumnCount = width >= 300 ? 3 : 2;
-    final maximumColumnCount = isFullscreen ? 6 : 7;
+    final minimumColumnCount = switch (orientation) {
+      Orientation.portrait => width >= 300 ? 3 : 2,
+      Orientation.landscape => width >= 420 ? 4 : 3,
+    };
+
+    final maximumColumnCount = switch (orientation) {
+      Orientation.portrait => isFullscreen ? 7 : 8,
+      Orientation.landscape => isFullscreen ? 10 : 12,
+    };
 
     return calculatedColumnCount
         .clamp(minimumColumnCount, maximumColumnCount)
