@@ -146,23 +146,39 @@ class BookCoverShelf extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        for (var index = 0; index < columnCount; index++) ...[
+                        for (
+                          var index = 0;
+                          index < rowBooks.length;
+                          index++
+                        ) ...[
+                          SizedBox(
+                            width: coverWidth,
+                            height: coverHeight,
+                            child: BookCoverCard(
+                              book: rowBooks[index],
+                              canReorder: canReorder,
+                              showReadingStatusBadge: showReadingStatusBadges,
+                              onTap: () {
+                                onBookTap(rowBooks[index]);
+                              },
+                              onReorder: onReorder,
+                            ),
+                          ),
+
+                          if (index < rowBooks.length - 1)
+                            SizedBox(width: horizontalSpacing),
+                        ],
+
+                        // Viimeisen vajaan rivin tyhjä loppuosa.
+                        if (rowBooks.length < columnCount) ...[
+                          if (rowBooks.isNotEmpty)
+                            SizedBox(width: horizontalSpacing),
+
                           Expanded(
-                            child: index < rowBooks.length
-                                ? BookCoverCard(
-                                    book: rowBooks[index],
-                                    canReorder: canReorder,
-                                    showReadingStatusBadge:
-                                        showReadingStatusBadges,
-                                    onTap: () {
-                                      onBookTap(rowBooks[index]);
-                                    },
-                                    onReorder: onReorder,
-                                  )
+                            child: isLastRow && canReorder
+                                ? _buildEndDropTarget(context)
                                 : const SizedBox.shrink(),
                           ),
-                          if (index < columnCount - 1)
-                            SizedBox(width: horizontalSpacing),
                         ],
                       ],
                     ),
@@ -190,6 +206,73 @@ class BookCoverShelf extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildEndDropTarget(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return DragTarget<Book>(
+      onWillAcceptWithDetails: (details) {
+        if (books.isEmpty) {
+          return false;
+        }
+
+        // Viimeisenä oleva kirja on jo oikeassa paikassa.
+        return details.data != books.last;
+      },
+      onAcceptWithDetails: (details) {
+        onMoveToEnd(details.data);
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isHighlighted = candidateData.isNotEmpty;
+
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+          margin: const EdgeInsets.only(bottom: 4),
+          decoration: BoxDecoration(
+            color: isHighlighted
+                ? colorScheme.primary.withValues(alpha: 0.10)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: isHighlighted
+                ? Border.all(
+                    color: colorScheme.primary.withValues(alpha: 0.75),
+                    width: 1.5,
+                  )
+                : null,
+          ),
+          alignment: Alignment.center,
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 140),
+            opacity: isHighlighted ? 1 : 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.keyboard_double_arrow_right,
+                  size: 20,
+                  color: colorScheme.primary,
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    'Siirrä loppuun',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
