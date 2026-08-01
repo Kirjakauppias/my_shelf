@@ -75,6 +75,18 @@ class _BookCoverImageState extends State<BookCoverImage> {
                 height: double.infinity,
                 fit: widget.fit,
                 gaplessPlayback: true,
+                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                  if (wasSynchronouslyLoaded) {
+                    return child;
+                  }
+
+                  return AnimatedOpacity(
+                    opacity: frame == null ? 0 : 1,
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOut,
+                    child: child,
+                  );
+                },
                 errorBuilder: (context, error, stackTrace) {
                   return _buildNetworkOrFallbackCover();
                 },
@@ -101,18 +113,35 @@ class _BookCoverImageState extends State<BookCoverImage> {
       height: double.infinity,
       fit: widget.fit,
       gaplessPlayback: true,
+
+      // Kansikuva ilmestyy pehmeästi latauduttuaan.
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (wasSynchronouslyLoaded) {
+          return child;
+        }
+
+        return AnimatedOpacity(
+          opacity: frame == null ? 0 : 1,
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOut,
+          child: child,
+        );
+      },
+
       loadingBuilder: (context, child, loadingProgress) {
         if (loadingProgress == null) {
           return child;
         }
 
-        return _buildLoadingCover(
-          progress: loadingProgress.expectedTotalBytes == null
-              ? null
-              : loadingProgress.cumulativeBytesLoaded /
-                    loadingProgress.expectedTotalBytes!,
-        );
+        final expectedBytes = loadingProgress.expectedTotalBytes;
+
+        final progress = expectedBytes == null
+            ? null
+            : loadingProgress.cumulativeBytesLoaded / expectedBytes;
+
+        return _buildLoadingCover(progress: progress);
       },
+
       errorBuilder: (context, error, stackTrace) {
         return _buildFallbackCover();
       },
@@ -120,18 +149,82 @@ class _BookCoverImageState extends State<BookCoverImage> {
   }
 
   Widget _buildLoadingCover({double? progress}) {
-    return Container(
-      color: const Color(0xFFE6D8C8),
-      alignment: Alignment.center,
-      child: SizedBox(
-        width: 24,
-        height: 24,
-        child: CircularProgressIndicator(
-          value: progress,
-          strokeWidth: 2,
-          color: const Color(0xFF795548),
-        ),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final showLabel =
+            constraints.maxWidth >= 90 && constraints.maxHeight >= 125;
+
+        return DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFECE3D8), Color(0xFFDDD0C1), Color(0xFFD2C1AF)],
+            ),
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.auto_stories_outlined,
+                      size: showLabel ? 25 : 20,
+                      color: const Color(0xFF806957),
+                    ),
+                    if (showLabel) ...[
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Ladataan kantta',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color(0xFF6F5B4C),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              Positioned(
+                left: 10,
+                right: 10,
+                bottom: 9,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 2,
+                    backgroundColor: const Color(0x33795548),
+                    color: const Color(0xFF795548),
+                  ),
+                ),
+              ),
+
+              // Hienovarainen kirjan selkä vasemmassa reunassa.
+              const Positioned(
+                top: 0,
+                bottom: 0,
+                left: 0,
+                width: 4,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [Color(0x28000000), Color(0x00000000)],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
