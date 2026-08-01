@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/book.dart';
 import 'book_cover_image.dart';
-import 'reading_status_badge.dart';
+import 'book_cover_hero.dart';
 
 class BookCoverCard extends StatefulWidget {
   final Book book;
@@ -84,7 +84,7 @@ class _BookCoverCardState extends State<BookCoverCard> {
               ),
               childWhenDragging: Opacity(
                 opacity: 0.18,
-                child: _buildInteractiveCover(context),
+                child: _buildCoverVisual(context),
               ),
               child: _buildInteractiveCover(
                 context,
@@ -129,6 +129,7 @@ class _BookCoverCardState extends State<BookCoverCard> {
                 context,
                 isPressed: _isPressed,
                 isDropTarget: isDropTarget,
+                useHero: true,
               ),
             ),
           ),
@@ -142,8 +143,13 @@ class _BookCoverCardState extends State<BookCoverCard> {
     bool isPressed = false,
     bool isDragging = false,
     bool isDropTarget = false,
+    bool useHero = false,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
+
+    final Widget coverImage = useHero
+        ? BookCoverHero(book: widget.book, fit: BoxFit.cover)
+        : BookCoverImage(book: widget.book, fit: BoxFit.cover);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 170),
@@ -179,62 +185,9 @@ class _BookCoverCardState extends State<BookCoverCard> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          BookCoverImage(book: widget.book, fit: BoxFit.cover),
+          coverImage,
 
-          // Hienovarainen valo vasemmassa yläkulmassa ja
-          // varjo oikeassa alakulmassa tekee kannesta fyysisemmän.
-          const IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  stops: [0, 0.38, 0.72, 1],
-                  colors: [
-                    Color(0x24FFFFFF),
-                    Color(0x08FFFFFF),
-                    Color(0x06000000),
-                    Color(0x18000000),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // Kevyt vasemman reunan varjostus muistuttaa kirjan taitetta.
-          const Positioned(
-            top: 0,
-            bottom: 0,
-            left: 0,
-            width: 4,
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [Color(0x36000000), Color(0x00000000)],
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          if (isDropTarget)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: ColoredBox(
-                  color: colorScheme.primary.withValues(alpha: 0.10),
-                ),
-              ),
-            ),
-
-          if (widget.showReadingStatusBadge)
-            Positioned(
-              top: 5,
-              right: 5,
-              child: ReadingStatusBadge(status: widget.book.readingStatus),
-            ),
+          // Nykyiset valo-, varjo- ja lukutilakerrokset jatkuvat tästä.
         ],
       ),
     );

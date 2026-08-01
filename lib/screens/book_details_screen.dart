@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/book.dart';
 import '../dialogs/manual_book_dialog.dart';
 import '../services/custom_cover_service.dart';
-import '../widgets/book_cover_image.dart';
+import '../widgets/book_cover_hero.dart';
 
 class BookDetailsResult {
   final bool deleted;
@@ -584,13 +584,8 @@ class _BookCover extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             onTap: onChangeCover,
-            borderRadius: BorderRadius.circular(12),
-            child: BookCoverImage(
-              book: book,
-              width: 150,
-              height: 220,
-              borderRadius: BorderRadius.circular(12),
-            ),
+            borderRadius: BorderRadius.circular(5),
+            child: BookCoverHero(book: book, width: 150, height: 220),
           ),
         ),
         const SizedBox(height: 8),
