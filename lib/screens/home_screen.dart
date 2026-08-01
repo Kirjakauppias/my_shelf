@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 
 import '../dialogs/manual_book_dialog.dart';
 import '../models/book.dart';
@@ -15,8 +16,8 @@ import '../utils/book_query.dart';
 import '../widgets/book_cover_shelf.dart';
 import '../services/custom_cover_service.dart';
 import '../widgets/shelf_empty_state.dart';
-
-enum BookViewMode { covers, spines }
+import '../models/library_view_settings.dart';
+import '../services/library_view_settings_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -59,6 +60,9 @@ class _HomeScreenState extends State<HomeScreen> {
   BookContentFilter _selectedBookContentFilter = BookContentFilter.all;
 
   final CustomCoverService _customCoverService = CustomCoverService();
+
+  final LibraryViewSettingsService _libraryViewSettingsService =
+      LibraryViewSettingsService();
 
   bool _isShelfFullscreen = false;
 
@@ -120,6 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+
     _loadAppData();
   }
 
@@ -212,7 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _storageService.loadBooks(),
       _shelfStorageService.loadShelves(),
     ]);
-
+    await _loadLibraryViewSettings();
     final storedBooks = results[0] as List<Book>;
     final storedShelves = results[1] as List<Shelf>;
 
@@ -1586,21 +1591,15 @@ class _HomeScreenState extends State<HomeScreen> {
               onSelected: (value) {
                 switch (value) {
                   case 'view-covers':
-                    setState(() {
-                      _bookViewMode = BookViewMode.covers;
-                    });
+                    _setBookViewMode(BookViewMode.covers);
                     break;
 
                   case 'view-spines':
-                    setState(() {
-                      _bookViewMode = BookViewMode.spines;
-                    });
+                    _setBookViewMode(BookViewMode.spines);
                     break;
 
                   case 'toggle-reading-status':
-                    setState(() {
-                      _showReadingStatusBadges = !_showReadingStatusBadges;
-                    });
+                    _toggleReadingStatusBadges();
                     break;
 
                   case 'export':
@@ -2004,21 +2003,15 @@ class _HomeScreenState extends State<HomeScreen> {
             onSelected: (value) {
               switch (value) {
                 case 'covers':
-                  setState(() {
-                    _bookViewMode = BookViewMode.covers;
-                  });
+                  _setBookViewMode(BookViewMode.covers);
                   break;
 
                 case 'spines':
-                  setState(() {
-                    _bookViewMode = BookViewMode.spines;
-                  });
+                  _setBookViewMode(BookViewMode.spines);
                   break;
 
                 case 'reading-status':
-                  setState(() {
-                    _showReadingStatusBadges = !_showReadingStatusBadges;
-                  });
+                  _toggleReadingStatusBadges();
                   break;
               }
             },
@@ -2069,6 +2062,73 @@ class _HomeScreenState extends State<HomeScreen> {
 
       _selectedBookContentFilter = BookContentFilter.all;
     });
+  }
+
+  Future<void> _loadLibraryViewSettings() async {
+    try {
+      final settings = await _libraryViewSettingsService.loadSettings();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _bookViewMode = settings.bookViewMode;
+
+        _showReadingStatusBadges = settings.showReadingStatusBadges;
+      });
+    } catch (error) {
+      debugPrint(
+        'Kirjaston näkymäasetusten lataaminen '
+        'epäonnistui: $error',
+      );
+    }
+  }
+
+  void _setBookViewMode(BookViewMode bookViewMode) {
+    if (_bookViewMode == bookViewMode) {
+      return;
+    }
+
+    setState(() {
+      _bookViewMode = bookViewMode;
+    });
+
+    unawaited(_saveBookViewMode(bookViewMode));
+  }
+
+  Future<void> _saveBookViewMode(BookViewMode bookViewMode) async {
+    try {
+      await _libraryViewSettingsService.saveBookViewMode(bookViewMode);
+    } catch (error) {
+      debugPrint(
+        'Kirjojen esitystavan tallentaminen '
+        'epäonnistui: $error',
+      );
+    }
+  }
+
+  void _toggleReadingStatusBadges() {
+    final newValue = !_showReadingStatusBadges;
+
+    setState(() {
+      _showReadingStatusBadges = newValue;
+    });
+
+    unawaited(_saveReadingStatusBadges(newValue));
+  }
+
+  Future<void> _saveReadingStatusBadges(bool showReadingStatusBadges) async {
+    try {
+      await _libraryViewSettingsService.saveShowReadingStatusBadges(
+        showReadingStatusBadges,
+      );
+    } catch (error) {
+      debugPrint(
+        'Lukutilatunnisteasetuksen tallentaminen '
+        'epäonnistui: $error',
+      );
+    }
   }
 }
 
