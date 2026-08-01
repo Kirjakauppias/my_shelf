@@ -14,6 +14,7 @@ import '../services/backup_import_service.dart';
 import '../utils/book_query.dart';
 import '../widgets/book_cover_shelf.dart';
 import '../services/custom_cover_service.dart';
+import '../widgets/shelf_empty_state.dart';
 
 enum BookViewMode { covers, spines }
 
@@ -426,32 +427,6 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.more_vert),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyShelf() {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.menu_book_outlined, size: 64),
-            SizedBox(height: 16),
-            Text(
-              'Tämä kirjahylly on vielä tyhjä.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Lisää ensimmäinen kirja skannaamalla viivakoodi tai '
-              'syöttämällä tiedot käsin.',
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1263,102 +1238,66 @@ class _HomeScreenState extends State<HomeScreen> {
     return books.where((book) => book.shelfId == selectedShelfId).toList();
   }
 
-  Widget _buildNoSearchResults() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Ei hakutuloksia',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Haulla "$searchQuery" ei löytynyt kirjoja.',
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: _clearSearch,
-              child: const Text('Tyhjennä haku'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildShelfContent() {
-    if (selectedShelfBooks.isEmpty) {
-      return _buildEmptyShelf();
-    }
+    final hasSearchQuery = searchQuery.trim().isNotEmpty;
 
-    if (visibleBooks.isEmpty && searchQuery.trim().isNotEmpty) {
-      return _buildNoSearchResults();
-    }
-
-    final hasActiveFilter =
+    final hasActiveFilters =
         _selectedReadingStatusFilter != ReadingStatusFilter.all ||
         _selectedBookContentFilter != BookContentFilter.all;
 
-    if (visibleBooks.isEmpty && hasActiveFilter) {
-      return _buildNoFilteredBooks();
+    // Hyllyssä ei ole lainkaan kirjoja.
+    if (selectedShelfBooks.isEmpty) {
+      return ShelfEmptyState(
+        icon: Icons.shelves,
+        title: 'Hylly on vielä tyhjä',
+        message:
+            'Skannaa ensimmäinen kirja ja aloita oman kirjahyllysi rakentaminen.',
+        actionLabel: 'Skannaa ensimmäinen kirja',
+        actionIcon: Icons.qr_code_scanner,
+        onAction: _openBarcodeScanner,
+      );
+    }
+
+    // Sekä haku että suodattimet rajaavat kaikki kirjat pois.
+    if (visibleBooks.isEmpty && hasSearchQuery && hasActiveFilters) {
+      return ShelfEmptyState(
+        icon: Icons.manage_search,
+        title: 'Kirjoja ei löytynyt',
+        message:
+            'Nykyinen hakusana ja suodattimet eivät vastaa yhtäkään tämän hyllyn kirjaa.',
+        actionLabel: 'Tyhjennä haku ja suodattimet',
+        actionIcon: Icons.filter_alt_off_outlined,
+        onAction: _clearSearchAndFilters,
+      );
+    }
+
+    // Pelkkä haku ei tuottanut tuloksia.
+    if (visibleBooks.isEmpty && hasSearchQuery) {
+      return ShelfEmptyState(
+        icon: Icons.search_off,
+        title: 'Haulla ei löytynyt kirjoja',
+        message:
+            'Kokeile toista hakusanaa tai näytä jälleen kaikki hyllyn kirjat.',
+        actionLabel: 'Tyhjennä haku',
+        actionIcon: Icons.close,
+        onAction: _closeSearch,
+      );
+    }
+
+    // Pelkät suodattimet rajaavat kaikki kirjat pois.
+    if (visibleBooks.isEmpty && hasActiveFilters) {
+      return ShelfEmptyState(
+        icon: Icons.filter_alt_off_outlined,
+        title: 'Suodattimilla ei löytynyt kirjoja',
+        message:
+            'Poista aktiiviset suodattimet nähdäksesi kaikki tämän hyllyn kirjat.',
+        actionLabel: 'Poista suodattimet',
+        actionIcon: Icons.filter_alt_off,
+        onAction: _clearBookFilters,
+      );
     }
 
     return _buildLibraryView();
-    /*return Bookshelf(
-      books: visibleBooks,
-      onReorder: _canReorderBooks ? _reorderVisibleBooks : _disabledReorder,
-      onMoveToEnd: _canReorderBooks ? _moveBookToEnd : _disabledMoveToEnd,
-      onBookTap: _openBookActions,
-    );*/
-  }
-
-  Widget _buildNoFilteredBooks() {
-    final activeFilters = <String>[];
-
-    if (_selectedReadingStatusFilter != ReadingStatusFilter.all) {
-      activeFilters.add('Lukutila: ${_selectedReadingStatusFilter.label}');
-    }
-
-    if (_selectedBookContentFilter != BookContentFilter.all) {
-      activeFilters.add('Rajaus: ${_selectedBookContentFilter.label}');
-    }
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Ei kirjoja tällä suodatuksella',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            if (activeFilters.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(activeFilters.join('\n'), textAlign: TextAlign.center),
-            ],
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _selectedReadingStatusFilter = ReadingStatusFilter.all;
-
-                  _selectedBookContentFilter = BookContentFilter.all;
-                });
-              },
-              child: const Text('Poista suodatukset'),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Future<void> _exportBackup(BuildContext shareButtonContext) async {
@@ -2108,6 +2047,28 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  void _clearSearchAndFilters() {
+    _searchController.clear();
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      searchQuery = '';
+      _isSearchOpen = false;
+
+      _selectedReadingStatusFilter = ReadingStatusFilter.all;
+
+      _selectedBookContentFilter = BookContentFilter.all;
+    });
+  }
+
+  void _clearBookFilters() {
+    setState(() {
+      _selectedReadingStatusFilter = ReadingStatusFilter.all;
+
+      _selectedBookContentFilter = BookContentFilter.all;
+    });
   }
 }
 
