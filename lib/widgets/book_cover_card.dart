@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/book.dart';
 import 'book_cover_image.dart';
 import 'book_cover_hero.dart';
+import 'reading_status_badge.dart';
 
 class BookCoverCard extends StatefulWidget {
   final Book book;
@@ -187,7 +188,62 @@ class _BookCoverCardState extends State<BookCoverCard> {
         children: [
           coverImage,
 
-          // Nykyiset valo-, varjo- ja lukutilakerrokset jatkuvat tästä.
+          // Kevyt valo- ja varjostuskerros kannen päällä.
+          const IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  stops: [0, 0.38, 0.72, 1],
+                  colors: [
+                    Color(0x24FFFFFF),
+                    Color(0x08FFFFFF),
+                    Color(0x06000000),
+                    Color(0x18000000),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Hienovarainen kirjan taitos vasemmassa reunassa.
+          const Positioned(
+            top: 0,
+            bottom: 0,
+            left: 0,
+            width: 4,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [Color(0x36000000), Color(0x00000000)],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Raahauksen pudotuskohteen korostus.
+          if (isDropTarget)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: ColoredBox(
+                  color: colorScheme.primary.withValues(alpha: 0.10),
+                ),
+              ),
+            ),
+
+          // Lukutilatunniste pidetään viimeisenä,
+          // jotta se näkyy kaikkien kansikerrosten päällä.
+          if (widget.showReadingStatusBadge)
+            Positioned(
+              top: 5,
+              right: 5,
+              child: ReadingStatusBadge(status: widget.book.readingStatus),
+            ),
         ],
       ),
     );
