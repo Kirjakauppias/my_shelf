@@ -18,6 +18,7 @@ import '../services/custom_cover_service.dart';
 import '../widgets/shelf_empty_state.dart';
 import '../models/library_view_settings.dart';
 import '../services/library_view_settings_service.dart';
+import '../services/portable_cover_restore_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -52,6 +53,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final BackupExportService _backupExportService = const BackupExportService();
   final BackupImportService _backupImportService = BackupImportService();
+  final PortableCoverRestoreService _portableCoverRestoreService =
+      PortableCoverRestoreService();
 
   BookSortOption _selectedSortOption = BookSortOption.custom;
 
@@ -970,7 +973,11 @@ class _HomeScreenState extends State<HomeScreen> {
       author: book.author,
       pageCount: book.pageCount,
       coverUrl: book.coverUrl,
+      customCoverFileName: book.customCoverFileName,
       spineColor: book.spineColor,
+      readingStatus: book.readingStatus,
+      rating: book.rating,
+      notes: book.notes,
     );
   }
 
@@ -1313,7 +1320,7 @@ class _HomeScreenState extends State<HomeScreen> {
         : null;
 
     try {
-      final outcome = await _backupExportService.exportBackup(
+      final outcome = await _backupExportService.exportPortableBackup(
         books: books,
         shelves: shelves,
         sharePositionOrigin: sharePositionOrigin,
@@ -1357,38 +1364,67 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<bool> _confirmBackupRestore(BackupImportSelection selection) async {
     final backup = selection.backup;
 
+    final backupTypeLabel = selection.isPortable
+        ? 'Siirrettävä ZIP-varmuuskopio'
+        : 'Vanha JSON-varmuuskopio';
+
     final shouldRestore = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Palauta varmuuskopio?'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                selection.fileName,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              Text('Luotu: ${_formatBackupDate(backup.createdAt)}'),
-              const SizedBox(height: 6),
-              Text('Kirjoja: ${backup.books.length}'),
-              Text('Kirjahyllyjä: ${backup.shelves.length}'),
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 8),
-              Text(
-                'Nykyiset kirjat ja kirjahyllyt korvataan '
-                'varmuuskopion tiedoilla.',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                  fontWeight: FontWeight.w600,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  selection.fileName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                Text('Muoto: $backupTypeLabel'),
+                const SizedBox(height: 6),
+                Text('Luotu: ${_formatBackupDate(backup.createdAt)}'),
+                const SizedBox(height: 6),
+                Text('Kirjoja: ${backup.books.length}'),
+                Text('Kirjahyllyjä: ${backup.shelves.length}'),
+
+                if (selection.isPortable)
+                  Text(
+                    'Paikallisia kansikuvia: '
+                    '${selection.coverFiles.length}',
+                  ),
+
+                if (!selection.isPortable) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'JSON-varmuuskopio ei sisällä varsinaisia '
+                    'kansikuvatiedostoja.',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+                Text(
+                  selection.isPortable
+                      ? 'Nykyiset kirjat, kirjahyllyt ja paikalliset '
+                            'kansikuvat korvataan varmuuskopion tiedoilla.'
+                      : 'Nykyiset kirjat ja kirjahyllyt korvataan '
+                            'varmuuskopion tiedoilla.',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -1411,7 +1447,67 @@ class _HomeScreenState extends State<HomeScreen> {
     return shouldRestore ?? false;
   }
 
+  Future<void> _rollbackFailedBackupRestore({
+    required List<Book> previousBooks,
+    required List<Shelf> previousShelves,
+    PortableCoverRestoreTransaction? coverTransaction,
+  }) async {
+    // Palautetaan ensin aiemmat kansikuvat, koska käyttöliittymässä
+    // ovat vielä näkyvissä vanhan kirjaston kirjat.
+    if (coverTransaction != null && coverTransaction.isActive) {
+      try {
+        await coverTransaction.rollback();
+      } catch (error) {
+        debugPrint('Kansikuvien palautuksen peruminen epäonnistui: $error');
+      }
+    }
+
+    // Palautetaan aiemmat kirjat ja hyllyt mahdollisen
+    // osittaisen tallennuksen jälkeen.
+    try {
+      await Future.wait([
+        _storageService.saveBooks(previousBooks),
+        _shelfStorageService.saveShelves(previousShelves),
+      ]);
+    } catch (error) {
+      debugPrint('Aiempien kirjastotietojen palauttaminen epäonnistui: $error');
+    }
+  }
+
+  Set<String> _customCoverFileNames(Iterable<Book> sourceBooks) {
+    final fileNames = <String>{};
+
+    for (final book in sourceBooks) {
+      final fileName = book.customCoverFileName?.trim();
+
+      if (fileName != null && fileName.isNotEmpty) {
+        fileNames.add(fileName);
+      }
+    }
+
+    return fileNames;
+  }
+
+  Future<void> _deleteCoversNoLongerReferenced({
+    required List<Book> previousBooks,
+    required List<Book> restoredBooks,
+  }) async {
+    final previousCoverFileNames = _customCoverFileNames(previousBooks);
+
+    final restoredCoverFileNames = _customCoverFileNames(restoredBooks);
+
+    final unusedFileNames =
+        previousCoverFileNames.difference(restoredCoverFileNames).toList()
+          ..sort();
+
+    for (final fileName in unusedFileNames) {
+      await _deleteCustomCoverQuietly(fileName);
+    }
+  }
+
   Future<void> _restoreBackup() async {
+    var restoreStarted = false;
+
     try {
       final selection = await _backupImportService.pickBackup();
 
@@ -1429,28 +1525,46 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final restoredShelves = List<Shelf>.from(selection.backup.shelves);
 
-      // Säilytetään nykyiset tiedot mahdollista palautusta varten,
-      // jos uuden varmuuskopion tallennus epäonnistuu.
       final previousBooks = List<Book>.from(books);
       final previousShelves = List<Shelf>.from(shelves);
 
+      setState(() {
+        _isLoading = true;
+      });
+
+      restoreStarted = true;
+
+      PortableCoverRestoreTransaction? coverTransaction;
+
       try {
+        // ZIP-varmuuskopion kansikuvat otetaan käyttöön
+        // odottavana transaktiona.
+        if (selection.isPortable) {
+          coverTransaction = await _portableCoverRestoreService.beginRestore(
+            coverFiles: selection.coverFiles,
+          );
+        }
+
+        // Tallennus voi onnistua vain osittain, joten virheessä
+        // molemmat listat palautetaan aiempiin arvoihinsa.
         await Future.wait([
           _storageService.saveBooks(restoredBooks),
           _shelfStorageService.saveShelves(restoredShelves),
         ]);
-      } catch (_) {
-        // Yritetään palauttaa aiemmat tiedot.
-        try {
-          await Future.wait([
-            _storageService.saveBooks(previousBooks),
-            _shelfStorageService.saveShelves(previousShelves),
-          ]);
-        } catch (_) {
-          // Alkuperäinen tallennusvirhe käsitellään alempana.
-        }
 
-        rethrow;
+        // Kansikuvien palautus vahvistetaan vasta, kun kirjat
+        // ja hyllyt on tallennettu onnistuneesti.
+        if (coverTransaction != null) {
+          await coverTransaction.commit();
+        }
+      } catch (error, stackTrace) {
+        await _rollbackFailedBackupRestore(
+          previousBooks: previousBooks,
+          previousShelves: previousShelves,
+          coverTransaction: coverTransaction,
+        );
+
+        Error.throwWithStackTrace(error, stackTrace);
       }
 
       if (!mounted) {
@@ -1477,26 +1591,53 @@ class _HomeScreenState extends State<HomeScreen> {
           ..addAll(restoredShelves);
 
         selectedShelfId = nextSelectedShelfId;
+
         searchQuery = '';
+        _isSearchOpen = false;
 
         _selectedSortOption = BookSortOption.custom;
 
         _selectedReadingStatusFilter = ReadingStatusFilter.all;
+
         _selectedBookContentFilter = BookContentFilter.all;
+
+        _isLoading = false;
       });
+
+      // Poistetaan vanhan kirjaston sellaiset kansikuvat,
+      // joihin palautettu kirjasto ei enää viittaa.
+      await _deleteCoversNoLongerReferenced(
+        previousBooks: previousBooks,
+        restoredBooks: restoredBooks,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      final coverMessage = selection.isPortable
+          ? ' ja ${selection.coverFiles.length} kansikuvaa'
+          : '';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             'Varmuuskopio palautettiin: '
-            '${restoredBooks.length} kirjaa ja '
-            '${restoredShelves.length} kirjahyllyä.',
+            '${restoredBooks.length} kirjaa, '
+            '${restoredShelves.length} kirjahyllyä'
+            '$coverMessage.',
           ),
         ),
       );
     } on FormatException catch (error) {
       if (!mounted) {
         return;
+      }
+
+      if (restoreStarted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1510,6 +1651,12 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (error) {
       if (!mounted) {
         return;
+      }
+
+      if (restoreStarted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
