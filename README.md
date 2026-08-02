@@ -1,18 +1,59 @@
 # My Shelf
 
-My Shelf on Flutterilla toteutettu mobiilisovellus oman kirjakokoelman hallintaan.
+My Shelf on Flutterilla toteutettu henkilökohtainen ja visuaalinen kirjastosovellus oman kirjakokoelman hallintaan.
 
-Sovelluksella voi skannata kirjojen ISBN-viivakoodeja, hakea kirjan tiedot verkkopalveluista sekä järjestää kirjat omiin virtuaalisiin kirjahyllyihin.
+Sovelluksen keskiössä on virtuaalinen kirjahylly, jossa kirjat esitetään oletuksena kansikuvina. Kirjoja voi lisätä skannaamalla ISBN-viivakoodin, hakemalla ISBN-numerolla tai syöttämällä kirjan tiedot käsin.
 
-Kirjoja voi hakea, lajitella ja suodattaa. Jokaiselle kirjalle voidaan tallentaa lukutila, tähtiarvosana ja henkilökohtainen muistiinpano. Kirjastosta voidaan myös luoda JSON-varmuuskopio ja palauttaa tiedot myöhemmin varmuuskopiotiedostosta.
+Kirjat voidaan järjestää omiin hyllyihin, lajitella, suodattaa ja asettaa haluttuun järjestykseen raahaamalla. Jokaiselle kirjalle voidaan tallentaa lukutila, tähtiarvosana, henkilökohtainen muistiinpano ja käyttäjän itse valitsema kansikuva.
 
 ## Nykyinen versio
 
-**v0.8.0-alpha**
+**v0.9.0-alpha**
 
-Tämä on sovelluksen kehitysversio. Sovelluksen keskeiset perustoiminnot ovat käytettävissä, mutta ominaisuudet, käyttöliittymä ja tietojen tallennustapa voivat vielä muuttua.
+Tämä on sovelluksen kehitysversio. Sovelluksen keskeiset toiminnot ovat käytettävissä, mutta ominaisuudet, käyttöliittymä ja tietojen tallennustapa voivat vielä muuttua.
+
+Version v0.9.0-alphan pääpaino on kirjahyllyn visuaalisessa ilmeessä, kansikuvissa ja käyttöliittymän viimeistelyssä.
 
 ## Ominaisuudet
+
+### Visuaalinen kirjahylly
+
+* Kansikuvat kirjojen oletusnäkymänä
+* Vaihtoehtoinen selkämyksenäkymä
+* Koko ruudun kirjahyllynäkymä
+* Hyllyn nimi koko ruudun näkymän nimikyltissä
+* Responsiivinen asettelu pysty- ja vaakasuunnassa
+* Kansien koon ja sarakemäärän automaattinen mukautuminen
+* Kirjojen järjestäminen raahaamalla ja pudottamalla
+* Pudotusalue kirjan siirtämiseksi järjestyksen loppuun
+* Hero-animaatio kirjahyllyn ja kirjan tietosivun välillä
+* Viimeistellyt puupinnat, hyllylaudat, varjot ja kansien välit
+* Visuaaliset näkymät tyhjälle hyllylle sekä tyhjille haku- ja suodatustuloksille
+
+Kirjahyllynäkymä toimii sekä puhelimen pysty- että vaakasuunnassa. Vaakasuunnassa käyttöliittymä tiivistyy automaattisesti, jotta hyllylle ja sen vierittämiselle jää riittävästi tilaa.
+
+### Kansikuvat
+
+Kirjan kansi valitaan seuraavassa järjestyksessä:
+
+1. käyttäjän itse valitsema kansikuva
+2. kirjatietopalvelusta löytynyt verkkokansi
+3. sovelluksen muodostama varakansi
+
+Kansikuville tuetaan seuraavia toimintoja:
+
+* Kansikuvan hakeminen kirjatietopalvelusta
+* Oman kansikuvan valitseminen laitteen kuvakirjastosta
+* Oman kansikuvan vaihtaminen
+* Oman kansikuvan poistaminen
+* Verkosta haetun kannen palauttaminen
+* Paikallisten kansikuvatiedostojen turvallinen tallentaminen
+* Vanhan kansikuvatiedoston poistaminen kantta vaihdettaessa
+* Kansikuvatiedoston poistaminen kirjaa poistettaessa
+* Pehmeä lataustila verkko- ja paikallisille kuville
+* Tyylitelty varakansi kirjoille, joilla ei ole kansikuvaa
+
+Varakannen väri perustuu kirjan selkämyksen väriin. Tekstin väri valitaan automaattisesti kannen vaaleuden perusteella.
 
 ### Kirjojen hallinta
 
@@ -20,9 +61,10 @@ Tämä on sovelluksen kehitysversio. Sovelluksen keskeiset perustoiminnot ovat k
 * ISBN-numeron syöttäminen käsin
 * Kirjatietojen haku Google Books -palvelusta
 * Vaihtoehtoinen haku Open Library -palvelusta
-* Kirjan lisääminen manuaalisesti
+* Kirjan lisääminen kokonaan käsin
 * Kirjan tietojen tarkasteleminen
 * Kirjan tietojen muokkaaminen
+* Kansikuvan vaihtaminen
 * Kirjan poistaminen
 * Kirjan siirtäminen hyllystä toiseen
 
@@ -36,6 +78,20 @@ Tämä on sovelluksen kehitysversio. Sovelluksen keskeiset perustoiminnot ovat k
 * Kirjojen järjestäminen raahaamalla
 * Kirjojen järjestyksen säilyttäminen sovelluksen käynnistysten välillä
 
+Sovelluksessa on aina oletushylly, jota ei voi poistaa.
+
+Käyttäjä voi luoda uusia hyllyjä esimerkiksi seuraaville kokoelmille:
+
+* Fantasia
+* Scifi
+* Historia
+* Sarjakuvat
+* Tietokirjat
+
+Uusi kirja lisätään sillä hetkellä valittuna olevaan hyllyyn. Kirja voidaan myöhemmin siirtää toiseen hyllyyn kirjan toimintojen kautta.
+
+Kun käyttäjän luoma hylly poistetaan, sen sisältämät kirjat siirretään automaattisesti oletushyllyyn.
+
 ### Haku
 
 Kirjoja voidaan hakea reaaliaikaisesti:
@@ -45,6 +101,8 @@ Kirjoja voidaan hakea reaaliaikaisesti:
 * ISBN-numerolla
 
 Haku kohdistuu sillä hetkellä valittuna olevan kirjahyllyn kirjoihin.
+
+Hakukenttä avataan päänäkymän hakukuvakkeesta, jotta kirjahyllylle jää mahdollisimman paljon näkyvää tilaa.
 
 ### Lajittelu
 
@@ -73,10 +131,13 @@ Jokaiselle kirjalle voidaan määrittää yksi seuraavista lukutiloista:
 Lukutila:
 
 * tallennetaan kirjan mukana
-* näkyy kirjan tietonäkymässä
-* voidaan vaihtaa kirjan tietonäkymästä
-* näkyy tunnisteena kirjan selkämyksessä
+* näkyy kirjan tietosivulla
+* voidaan vaihtaa kirjan tietosivulta
 * voidaan käyttää kirjojen suodattamiseen
+* voidaan näyttää tunnisteena kansikuvassa
+* voidaan näyttää tunnisteena kirjan selkämyksessä
+
+Lukutilatunnisteiden näyttäminen on valinnainen asetus. Valinta säilyy sovelluksen uudelleenkäynnistyksen jälkeen.
 
 ### Arvosanat
 
@@ -85,7 +146,7 @@ Kirjalle voidaan antaa arvosana yhdestä viiteen tähteä.
 Arvosana:
 
 * tallennetaan kirjan mukana
-* näkyy kirjan tietonäkymässä
+* näkyy kirjan tietosivulla
 * voidaan vaihtaa tai poistaa
 * säilyy sovelluksen uudelleenkäynnistyksen jälkeen
 * sisältyy JSON-varmuuskopioon
@@ -124,6 +185,36 @@ Lisäksi kirjoja voidaan suodattaa sisällön perusteella:
 
 Tekstihaku, lukutilasuodatus, sisältösuodatus ja lajittelu toimivat yhdessä.
 
+### Kirjan tietosivu
+
+Kirjan tietosivu on suunniteltu vastaamaan virtuaalisen kirjahyllyn visuaalista tyyliä.
+
+Tietosivulla voidaan:
+
+* tarkastella kirjan kantta, nimeä ja tekijää
+* vaihtaa tai poistaa kansikuva
+* palauttaa verkkokansi
+* tarkastella ISBN-numeroa ja sivumäärää
+* vaihtaa lukutilaa
+* antaa, muuttaa tai poistaa arvosana
+* lisätä tai muokata muistiinpanoa
+* muokata kirjan perustietoja
+* poistaa kirja
+
+Lukutilaa, arvosanaa ja muistiinpanoa voidaan muuttaa suoraan niitä vastaavia tietorivejä napauttamalla.
+
+### Näkymäasetukset
+
+Käyttäjä voi valita:
+
+* kansikuvanäkymän
+* selkämyksenäkymän
+* lukutilatunnisteiden näyttämisen
+
+Näkymäasetukset tallennetaan paikallisesti ja palautetaan automaattisesti sovelluksen käynnistyessä.
+
+Kansikuvanäkymä on sovelluksen oletusnäkymä.
+
 ### Varmuuskopiointi ja palautus
 
 Kirjoista ja kirjahyllyistä voidaan luoda JSON-muotoinen varmuuskopio.
@@ -133,6 +224,8 @@ Varmuuskopio sisältää:
 * varmuuskopioformaatin versionumeron
 * varmuuskopion luontiajankohdan
 * kaikki kirjat ja niiden perustiedot
+* kirjojen verkkokansien osoitteet
+* käyttäjän kansikuvatiedostojen nimet
 * kirjojen lukutilat
 * kirjojen arvosanat
 * kirjojen muistiinpanot
@@ -156,35 +249,20 @@ Ennen palauttamista sovellus:
 
 Varmuuskopion palauttaminen korvaa sovelluksessa sillä hetkellä olevat kirjat ja kirjahyllyt.
 
-## Kirjahyllyt
-
-Sovelluksessa on aina oletushylly, jota ei voi poistaa.
-
-Käyttäjä voi luoda uusia hyllyjä esimerkiksi seuraaville kokoelmille:
-
-* Fantasia
-* Scifi
-* Historia
-* Sarjakuvat
-* Tietokirjat
-
-Uusi kirja lisätään sillä hetkellä valittuna olevaan hyllyyn.
-
-Kirja voidaan myöhemmin siirtää toiseen hyllyyn kirjan toimintovalikon kautta.
-
-Kun käyttäjän luoma hylly poistetaan, sen sisältämät kirjat siirretään automaattisesti oletushyllyyn.
+> **Huomio:** käyttäjän itse lisäämät kansikuvat eivät vielä sisälly varsinaisina kuvatiedostoina JSON-varmuuskopioon. Varmuuskopio sisältää tällä hetkellä vain paikallisen kansikuvatiedoston nimen. Palauttaminen toiselle laitteelle ei tämän vuoksi siirrä käyttäjän lisäämiä kansikuvia.
 
 ## Tietojen tallennus
 
-Kirjat ja kirjahyllyt tallennetaan laitteen paikalliseen tallennustilaan `SharedPreferences`-paketin avulla.
+Kirjat, kirjahyllyt ja käyttöliittymän näkymäasetukset tallennetaan laitteen paikalliseen tallennustilaan.
 
-Tallennettavat tiedot muunnetaan JSON-muotoon ennen tallentamista.
+Kirjat ja hyllyt muunnetaan JSON-muotoon ennen tallentamista. Käyttäjän omat kansikuvat tallennetaan sovelluksen omaan pysyvään tiedostohakemistoon.
 
 Paikallisesti tallennettavia tietoja ovat esimerkiksi:
 
 * kirjojen perustiedot
 * ISBN-numero
-* kansikuvan osoite
+* verkkokannen osoite
+* oman kansikuvan tiedostonimi
 * kirjan selkämyksen väri
 * kirjan hylly
 * kirjan lukutila
@@ -192,6 +270,8 @@ Paikallisesti tallennettavia tietoja ovat esimerkiksi:
 * kirjan muistiinpano
 * kirjojen oma järjestys
 * käyttäjän luomat kirjahyllyt
+* valittu kirjojen esitystapa
+* lukutilatunnisteiden näkyvyys
 
 Tallennetut tiedot palautetaan automaattisesti sovelluksen käynnistyessä.
 
@@ -203,19 +283,24 @@ Nykyinen alpha-versio ei vielä sisällä:
 * käyttäjätilejä
 * automaattisia varmuuskopioita
 * tietojen automaattista synkronointia useiden laitteiden välillä
+* paikallisten kansikuvatiedostojen sisällyttämistä varmuuskopioon
 
 ## Käytetyt teknologiat
 
 * Flutter
 * Dart
 * Material 3
-* SharedPreferences
+* Shared Preferences
 * JSON
 * Google Books API
 * Open Library API
-* ISBN-viivakoodin skannaus
-* `share_plus`
-* `file_selector`
+* HTTP
+* Mobile Scanner
+* Image Picker
+* Path Provider
+* Path
+* Share Plus
+* File Selector
 
 ## Projektin rakenne
 
@@ -229,7 +314,9 @@ lib/
 ├── models/
 │   ├── book.dart
 │   ├── library_backup.dart
-│   └── shelf.dart
+│   ├── library_view_settings.dart
+│   ├── shelf.dart
+│   └── ...
 ├── screens/
 │   ├── book_details_screen.dart
 │   └── home_screen.dart
@@ -237,25 +324,40 @@ lib/
 │   ├── backup_export_service.dart
 │   ├── backup_import_service.dart
 │   ├── book_storage_service.dart
+│   ├── custom_cover_service.dart
+│   ├── library_view_settings_service.dart
 │   ├── shelf_storage_service.dart
 │   └── ...
+├── theme/
+│   └── app_theme.dart
 ├── utils/
 │   └── book_query.dart
 ├── widgets/
+│   ├── book_cover_card.dart
+│   ├── book_cover_hero.dart
+│   ├── book_cover_image.dart
+│   ├── book_cover_shelf.dart
 │   ├── book_spine.dart
 │   ├── bookshelf.dart
+│   ├── reading_status_badge.dart
 │   ├── shelf_board.dart
+│   ├── shelf_empty_state.dart
 │   ├── shelf_row.dart
 │   └── ...
 └── main.dart
 
 test/
 ├── models/
+│   ├── book_custom_cover_test.dart
 │   ├── book_notes_test.dart
 │   ├── book_rating_test.dart
-│   └── library_backup_test.dart
+│   ├── library_backup_test.dart
+│   ├── library_view_settings_test.dart
+│   └── ...
 ├── services/
-│   └── backup_import_service_test.dart
+│   ├── backup_import_service_test.dart
+│   ├── custom_cover_service_test.dart
+│   └── ...
 ├── utils/
 │   └── book_query_test.dart
 └── ...
@@ -299,14 +401,16 @@ Suorita testit:
 flutter test
 ```
 
-Version `v0.8.0-alpha` valmistuessa projektissa oli **49 läpäisevää automaattista testiä**.
+Version `v0.9.0-alpha` valmisteluvaiheessa projektissa on **63 läpäisevää automaattista testiä**.
 
 Testit kattavat muun muassa:
 
 * kirjamallin JSON-muunnokset
 * arvosanojen validoinnin
 * muistiinpanojen tallennuksen
-* varmuuskopion viennin tietomallin
+* käyttäjän oman kansikuvan tietomallin
+* paikallisten kansikuvatiedostojen hakemisen ja poistamisen
+* varmuuskopion tietomallin
 * varmuuskopion palautuksen validoinnin
 * kirjahaun
 * kirjahyllyrajauksen
@@ -315,34 +419,41 @@ Testit kattavat muun muassa:
 * lajittelun
 * eri hakujen ja suodattimien yhdistelmät
 * alkuperäisen kirjalistan järjestyksen säilymisen
+* näkymäasetusten oletusarvot ja tallennettujen arvojen palauttamisen
 
 ## Kehitystilanne
 
-Version `v0.8.0-alpha` pääpaino on ollut kirjojen henkilökohtaisten tietojen ja kirjaston selaustoimintojen laajentamisessa.
+Version `v0.9.0-alpha` pääpaino on ollut visuaalisen kirjahyllyn ja käyttöliittymän uudistamisessa.
 
 Toteutettuja kokonaisuuksia ovat:
 
-* yhden–viiden tähden arvosanat
-* arvosanan vaihtaminen ja poistaminen
-* kirjakohtaiset muistiinpanot
-* muistiinpanon lisääminen, muokkaaminen ja poistaminen
-* arvosanaan perustuva lajittelu
-* arvioitujen ja arvioimattomien kirjojen suodatus
-* muistiinpanoja sisältävien kirjojen suodatus
-* hakujen, suodatusten ja lajittelun yhteistoiminta
-* haku- ja suodatuslogiikan siirtäminen erilliseen `book_query.dart`-tiedostoon
-* uuden hakulogiikan kattavat automaattiset testit
+* kansikuvien käyttäminen oletusnäkymänä
+* selkämyksenäkymän säilyttäminen vaihtoehtona
+* koko ruudun kirjahyllynäkymä
+* käyttäjän omat kansikuvat
+* omien kansikuvien vaihtaminen ja poistaminen
+* tarpeettomien kuvatiedostojen siivous
+* responsiivinen kansien asettelu
+* puhelimen vaakasuunnan käyttöliittymä
+* kirjahyllyn, hyllylautojen ja kansikorttien visuaalinen viimeistely
+* tyylitellyt varakannet ja lataustilat
+* tyhjän hyllyn sekä tyhjien hakujen ja suodatusten näkymät
+* Hero-animaatio kirjan tietosivulle
+* kirjan tietosivun visuaalinen uudistus
+* näkymäasetusten paikallinen tallennus
+* lukutilatunnisteiden valinnainen näyttäminen
 
 ## Suunniteltuja ominaisuuksia
 
 Tulevissa versioissa voidaan toteuttaa esimerkiksi:
 
+* käyttäjän kansikuvien sisällyttäminen varmuuskopioon
 * kirjahyllyjen järjestäminen
 * lajittelu kirjan lisäysajan mukaan
 * lukemisen aloitus- ja lopetuspäivämäärät
+* lukemisen tilastot
 * kirjan lainaustiedot
 * automaattiset varmuuskopiot
-* käyttöliittymän ja lukutilatunnisteiden viimeistely
 * pilvisynkronointi
 * käyttäjätilit
 
