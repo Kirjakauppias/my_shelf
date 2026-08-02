@@ -2,6 +2,12 @@
 
 ### Suunnitteilla
 
+- Kansikuvat sisältävä siirrettävä varmuuskopio
+- ZIP-muotoinen varmuuskopiotiedosto
+- Vanhojen JSON-varmuuskopioiden yhteensopiva palauttaminen
+- Varmuuskopion kuvatiedostojen tarkistaminen
+- Turvallinen palautus ja muutosten peruminen virhetilanteessa
+
 - Käyttäjän omien kansikuvatiedostojen sisällyttäminen varmuuskopioon
 - Kirjahyllyjen järjestäminen
 - Lajittelu kirjan lisäysajan perusteella
