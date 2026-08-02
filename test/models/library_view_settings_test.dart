@@ -3,67 +3,36 @@ import 'package:my_shelf/models/library_view_settings.dart';
 
 void main() {
   group('LibraryViewSettings', () {
-    test(
-      'puuttuvat arvot palauttavat oletusasetukset',
-      () {
-        final settings =
-            LibraryViewSettings.fromStoredValues();
+    test('puuttuvat arvot palauttavat oletusasetukset', () {
+      final settings = LibraryViewSettings.fromStoredValues();
 
-        expect(
-          settings.bookViewMode,
-          BookViewMode.covers,
-        );
+      expect(settings.bookViewMode, BookViewMode.covers);
 
-        expect(
-          settings.showReadingStatusBadges,
-          isFalse,
-        );
-      },
-    );
+      expect(settings.showReadingStatusBadges, isFalse);
+    });
 
-    test(
-      'selkämyksenäkymä palautetaan tallennetusta arvosta',
-      () {
-        final settings =
-            LibraryViewSettings.fromStoredValues(
-              bookViewModeName: 'spines',
-            );
+    test('selkämyksenäkymä palautetaan tallennetusta arvosta', () {
+      final settings = LibraryViewSettings.fromStoredValues(
+        bookViewModeName: 'spines',
+      );
 
-        expect(
-          settings.bookViewMode,
-          BookViewMode.spines,
-        );
-      },
-    );
+      expect(settings.bookViewMode, BookViewMode.spines);
+    });
 
-    test(
-      'lukutilatunnisteasetus palautetaan',
-      () {
-        final settings =
-            LibraryViewSettings.fromStoredValues(
-              showReadingStatusBadges: true,
-            );
+    test('lukutilatunnisteasetus palautetaan', () {
+      final settings = LibraryViewSettings.fromStoredValues(
+        showReadingStatusBadges: true,
+      );
 
-        expect(
-          settings.showReadingStatusBadges,
-          isTrue,
-        );
-      },
-    );
+      expect(settings.showReadingStatusBadges, isTrue);
+    });
 
-    test(
-      'tuntematon näkymä palautuu kansikuviin',
-      () {
-        final settings =
-            LibraryViewSettings.fromStoredValues(
-              bookViewModeName: 'unknown-mode',
-            );
+    test('tuntematon näkymä palautuu kansikuviin', () {
+      final settings = LibraryViewSettings.fromStoredValues(
+        bookViewModeName: 'unknown-mode',
+      );
 
-        expect(
-          settings.bookViewMode,
-          BookViewMode.covers,
-        );
-      },
-    );
+      expect(settings.bookViewMode, BookViewMode.covers);
+    });
   });
 }
