@@ -8,11 +8,11 @@ Kirjat voidaan järjestää omiin hyllyihin, lajitella, suodattaa ja asettaa hal
 
 ## Nykyinen versio
 
-**v0.9.0-alpha**
+**v0.10.0-alpha**
 
 Tämä on sovelluksen kehitysversio. Sovelluksen keskeiset toiminnot ovat käytettävissä, mutta ominaisuudet, käyttöliittymä ja tietojen tallennustapa voivat vielä muuttua.
 
-Version v0.9.0-alphan pääpaino on kirjahyllyn visuaalisessa ilmeessä, kansikuvissa ja käyttöliittymän viimeistelyssä.
+Version v0.10.0-alphan pääpaino on siirrettävässä ZIP-varmuuskopiossa, joka sisältää kirjastotietojen lisäksi käyttäjän omat paikalliset kansikuvat.
 
 ## Ominaisuudet
 
@@ -149,7 +149,7 @@ Arvosana:
 * näkyy kirjan tietosivulla
 * voidaan vaihtaa tai poistaa
 * säilyy sovelluksen uudelleenkäynnistyksen jälkeen
-* sisältyy JSON-varmuuskopioon
+* sisältyy varmuuskopioon
 * voidaan käyttää lajitteluun ja suodattamiseen
 
 Kirja voi olla myös arvioimaton.
@@ -165,7 +165,7 @@ Muistiinpanoa voidaan käyttää esimerkiksi:
 * muistettavien asioiden merkitsemiseen
 * lainassa olevan kirjan tietojen kirjaamiseen
 
-Muistiinpano voidaan lisätä, muokata tai poistaa. Se tallennetaan kirjan mukana ja sisältyy JSON-varmuuskopioon.
+Muistiinpano voidaan lisätä, muokata tai poistaa. Se tallennetaan kirjan mukana ja sisältyy varmuuskopioon.
 
 ### Suodatus
 
@@ -217,15 +217,16 @@ Kansikuvanäkymä on sovelluksen oletusnäkymä.
 
 ### Varmuuskopiointi ja palautus
 
-Kirjoista ja kirjahyllyistä voidaan luoda JSON-muotoinen varmuuskopio.
+Kirjoista, kirjahyllyistä ja käyttäjän omista kansikuvista voidaan luoda siirrettävä ZIP-varmuuskopio.
 
-Varmuuskopio sisältää:
+ZIP-varmuuskopio sisältää:
 
-* varmuuskopioformaatin versionumeron
+* arkiston rakennetta kuvaavan `manifest.json`-tiedoston
+* kirjastotiedot sisältävän `library.json`-tiedoston
 * varmuuskopion luontiajankohdan
 * kaikki kirjat ja niiden perustiedot
 * kirjojen verkkokansien osoitteet
-* käyttäjän kansikuvatiedostojen nimet
+* käyttäjän paikalliset kansikuvat varsinaisina kuvatiedostoina
 * kirjojen lukutilat
 * kirjojen arvosanat
 * kirjojen muistiinpanot
@@ -235,21 +236,33 @@ Varmuuskopio sisältää:
 
 Varmuuskopio voidaan tallentaa tai jakaa käyttöjärjestelmän jakovalikon kautta.
 
-Aiemmin luotu varmuuskopio voidaan palauttaa valitsemalla JSON-tiedosto laitteen tiedostonvalitsimesta.
+Sovellus tukee palautuksessa kahta tiedostomuotoa:
+
+* uusi kansikuvat sisältävä ZIP-varmuuskopio
+* aiemmissa versioissa luotu JSON-varmuuskopio
+
+Vanha JSON-varmuuskopio sisältää kirjastotiedot mutta ei varsinaisia paikallisia kansikuvatiedostoja.
 
 Ennen palauttamista sovellus:
 
-* tarkistaa varmuuskopion version
+* tunnistaa JSON- ja ZIP-varmuuskopiot
+* tarkistaa varmuuskopion ja arkiston version
 * tarkistaa JSON-rakenteen
+* tarkistaa ZIP-arkiston sallitut tiedostot ja hakemistot
+* estää turvattomat tiedostopolut ja symboliset linkit
+* rajoittaa arkiston ja yksittäisten tiedostojen kokoa
 * tarkistaa kirjojen ja kirjahyllyjen tunnisteet
 * tunnistaa päällekkäiset tunnisteet
 * tarkistaa kirjojen viittaukset kirjahyllyihin
-* näyttää palautettavien kirjojen ja kirjahyllyjen määrän
+* tarkistaa paikallisten kansikuvien viittaukset ja kuvatiedostot
+* näyttää palautettavien kirjojen, kirjahyllyjen ja kansikuvien määrän
 * pyytää käyttäjältä vahvistuksen
 
-Varmuuskopion palauttaminen korvaa sovelluksessa sillä hetkellä olevat kirjat ja kirjahyllyt.
+ZIP-varmuuskopion kansikuvat otetaan käyttöön transaktiona. Vanhoista samannimisistä kuvista tehdään väliaikaiset varakopiot, ja palautus vahvistetaan vasta kirjastotietojen onnistuneen tallennuksen jälkeen.
 
-> **Huomio:** käyttäjän itse lisäämät kansikuvat eivät vielä sisälly varsinaisina kuvatiedostoina JSON-varmuuskopioon. Varmuuskopio sisältää tällä hetkellä vain paikallisen kansikuvatiedoston nimen. Palauttaminen toiselle laitteelle ei tämän vuoksi siirrä käyttäjän lisäämiä kansikuvia.
+Jos tallennus epäonnistuu, sovellus yrittää palauttaa sekä aiemmat kirjastotiedot että aiemmat kansikuvat. Onnistuneen palautuksen jälkeen tarpeettomiksi jääneet vanhan kirjaston kansikuvat poistetaan.
+
+Varmuuskopion palauttaminen korvaa sovelluksessa sillä hetkellä olevat kirjat ja kirjahyllyt. ZIP-varmuuskopio palauttaa lisäksi siihen sisältyvät paikalliset kansikuvat.
 
 ## Tietojen tallennus
 
@@ -275,7 +288,7 @@ Paikallisesti tallennettavia tietoja ovat esimerkiksi:
 
 Tallennetut tiedot palautetaan automaattisesti sovelluksen käynnistyessä.
 
-JSON-varmuuskopio tarjoaa erillisen tavan säilyttää ja siirtää kirjaston tietoja sovelluksen paikallisen tallennuksen lisäksi.
+ZIP-varmuuskopio tarjoaa erillisen tavan säilyttää ja siirtää kirjaston tiedot sekä käyttäjän omat kansikuvat sovelluksen paikallisen tallennuksen lisäksi. Vanhojen JSON-varmuuskopioiden palautusta tuetaan edelleen.
 
 Nykyinen alpha-versio ei vielä sisällä:
 
@@ -283,7 +296,6 @@ Nykyinen alpha-versio ei vielä sisällä:
 * käyttäjätilejä
 * automaattisia varmuuskopioita
 * tietojen automaattista synkronointia useiden laitteiden välillä
-* paikallisten kansikuvatiedostojen sisällyttämistä varmuuskopioon
 
 ## Käytetyt teknologiat
 
@@ -301,6 +313,8 @@ Nykyinen alpha-versio ei vielä sisällä:
 * Path
 * Share Plus
 * File Selector
+* Archive
+* ZIP
 
 ## Projektin rakenne
 
@@ -315,6 +329,8 @@ lib/
 │   ├── book.dart
 │   ├── library_backup.dart
 │   ├── library_view_settings.dart
+│   ├── portable_backup_archive_data.dart
+│   ├── portable_backup_manifest.dart
 │   ├── shelf.dart
 │   └── ...
 ├── screens/
@@ -325,7 +341,11 @@ lib/
 │   ├── backup_import_service.dart
 │   ├── book_storage_service.dart
 │   ├── custom_cover_service.dart
+│   ├── library_backup_validator.dart
 │   ├── library_view_settings_service.dart
+│   ├── portable_backup_archive_reader.dart
+│   ├── portable_backup_archive_service.dart
+│   ├── portable_cover_restore_service.dart
 │   ├── shelf_storage_service.dart
 │   └── ...
 ├── theme/
@@ -355,8 +375,12 @@ test/
 │   ├── library_view_settings_test.dart
 │   └── ...
 ├── services/
+│   ├── backup_export_service_test.dart
 │   ├── backup_import_service_test.dart
 │   ├── custom_cover_service_test.dart
+│   ├── portable_backup_archive_reader_test.dart
+│   ├── portable_backup_archive_service_test.dart
+│   ├── portable_cover_restore_service_test.dart
 │   └── ...
 ├── utils/
 │   └── book_query_test.dart
@@ -401,7 +425,7 @@ Suorita testit:
 flutter test
 ```
 
-Version `v0.9.0-alpha` valmisteluvaiheessa projektissa on **63 läpäisevää automaattista testiä**.
+Version `v0.10.0-alpha` valmisteluvaiheessa projektissa on **98 läpäisevää automaattista testiä**.
 
 Testit kattavat muun muassa:
 
@@ -411,7 +435,14 @@ Testit kattavat muun muassa:
 * käyttäjän oman kansikuvan tietomallin
 * paikallisten kansikuvatiedostojen hakemisen ja poistamisen
 * varmuuskopion tietomallin
+* siirrettävän varmuuskopion manifestin
+* ZIP-varmuuskopion muodostamisen
+* kansikuvatiedostojen lisäämisen ZIP-arkistoon
+* ZIP-arkiston turvallisen lukemisen
+* JSON- ja ZIP-varmuuskopioiden tunnistamisen
 * varmuuskopion palautuksen validoinnin
+* paikallisten kansikuvien transaktionaalisen palautuksen
+* kansikuvien palautuksen vahvistamisen ja perumisen
 * kirjahaun
 * kirjahyllyrajauksen
 * lukutilasuodatuksen
@@ -423,31 +454,29 @@ Testit kattavat muun muassa:
 
 ## Kehitystilanne
 
-Version `v0.9.0-alpha` pääpaino on ollut visuaalisen kirjahyllyn ja käyttöliittymän uudistamisessa.
+Version `v0.10.0-alpha` pääpaino on ollut siirrettävän, kansikuvat sisältävän varmuuskopioinnin toteuttamisessa.
 
 Toteutettuja kokonaisuuksia ovat:
 
-* kansikuvien käyttäminen oletusnäkymänä
-* selkämyksenäkymän säilyttäminen vaihtoehtona
-* koko ruudun kirjahyllynäkymä
-* käyttäjän omat kansikuvat
-* omien kansikuvien vaihtaminen ja poistaminen
-* tarpeettomien kuvatiedostojen siivous
-* responsiivinen kansien asettelu
-* puhelimen vaakasuunnan käyttöliittymä
-* kirjahyllyn, hyllylautojen ja kansikorttien visuaalinen viimeistely
-* tyylitellyt varakannet ja lataustilat
-* tyhjän hyllyn sekä tyhjien hakujen ja suodatusten näkymät
-* Hero-animaatio kirjan tietosivulle
-* kirjan tietosivun visuaalinen uudistus
-* näkymäasetusten paikallinen tallennus
-* lukutilatunnisteiden valinnainen näyttäminen
+* ZIP-muotoinen siirrettävä varmuuskopio
+* erilliset `manifest.json`- ja `library.json`-tiedostot
+* käyttäjän omien kansikuvien sisällyttäminen varmuuskopioon
+* vain käytössä olevien kansikuvatiedostojen lisääminen arkistoon
+* JSON- ja ZIP-varmuuskopioiden yhteensopiva palauttaminen
+* ZIP-arkiston rakenteen, tiedostopolkujen ja kokorajojen tarkistaminen
+* puuttuvien, ylimääräisten ja tyhjien kansikuvatiedostojen tunnistaminen
+* kansikuvien turvallinen valmistelu väliaikaishakemistossa
+* vanhojen samannimisten kansikuvien väliaikainen varmistaminen
+* kansikuvien palautuksen `commit`- ja `rollback`-toiminnot
+* aiempien kirjastotietojen palautusyritys tallennusvirheessä
+* tarpeettomien vanhojen kansikuvien siivous onnistuneen palautuksen jälkeen
+* varmuuskopion tietojen ja kansikuvien määrän näyttäminen vahvistusdialogissa
+* kirjan kaikkien tietojen säilyttäminen hyllystä toiseen siirrettäessä
 
 ## Suunniteltuja ominaisuuksia
 
 Tulevissa versioissa voidaan toteuttaa esimerkiksi:
 
-* käyttäjän kansikuvien sisällyttäminen varmuuskopioon
 * kirjahyllyjen järjestäminen
 * lajittelu kirjan lisäysajan mukaan
 * lukemisen aloitus- ja lopetuspäivämäärät

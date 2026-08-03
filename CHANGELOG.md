@@ -2,13 +2,6 @@
 
 ### Suunnitteilla
 
-- Kansikuvat sisältävä siirrettävä varmuuskopio
-- ZIP-muotoinen varmuuskopiotiedosto
-- Vanhojen JSON-varmuuskopioiden yhteensopiva palauttaminen
-- Varmuuskopion kuvatiedostojen tarkistaminen
-- Turvallinen palautus ja muutosten peruminen virhetilanteessa
-
-- Käyttäjän omien kansikuvatiedostojen sisällyttäminen varmuuskopioon
 - Kirjahyllyjen järjestäminen
 - Lajittelu kirjan lisäysajan perusteella
 - Lukemisen aloitus- ja lopetuspäivämäärät
@@ -17,6 +10,149 @@
 - Automaattiset varmuuskopiot
 - Pilvisynkronointi
 - Käyttäjätilit
+
+## [0.10.0-alpha] - 2026-08-03
+
+### Lisätty
+
+- Kansikuvat sisältävä siirrettävä ZIP-varmuuskopio
+- `archive`-paketti ZIP-arkistojen muodostamiseen ja lukemiseen
+- ZIP-varmuuskopion `manifest.json`-tiedosto
+- ZIP-varmuuskopion `library.json`-tiedosto
+- ZIP-varmuuskopion `covers/`-hakemisto paikallisille kansikuville
+- `PortableBackupManifest` ZIP-arkiston rakenteen versiointiin
+- ZIP-arkistolle kirjaston JSON-rakenteesta erillinen versionumero
+- My Shelf -varmuuskopioarkiston formaattitunniste
+- `PortableBackupArchiveService` ZIP-varmuuskopioiden muodostamiseen
+- `PortableBackupArchiveReader` ZIP-varmuuskopioiden turvalliseen lukemiseen
+- `PortableBackupArchiveData` puretun varmuuskopion tietojen säilyttämiseen muistissa
+- `LibraryBackupValidator` kirjastotietojen yhteiseen eheystarkistukseen
+- `PortableCoverRestoreService` paikallisten kansikuvien turvalliseen palauttamiseen
+- `PortableCoverRestoreTransaction` kansikuvien palautuksen vahvistamiseen tai perumiseen
+- Käyttäjän omien kansikuvatiedostojen sisällyttäminen varmuuskopioon
+- Vain kirjojen käyttämien kansikuvatiedostojen lisääminen ZIP-arkistoon
+- Saman kansikuvatiedoston lisääminen arkistoon vain kerran
+- ZIP-varmuuskopion jakaminen käyttöjärjestelmän jakovalikolla
+- `.zip`-tiedostopääte uusille siirrettäville varmuuskopioille
+- JSON- ja ZIP-varmuuskopioiden valitseminen samalla tiedostonvalitsimella
+- Varmuuskopion tiedostomuodon automaattinen tunnistaminen tiedostopäätteestä
+- Vanhojen JSON-varmuuskopioiden yhteensopiva palauttaminen
+- ZIP-varmuuskopion kansikuvien pitäminen muistissa ennen palautuksen vahvistamista
+- Kansikuvien kirjoittaminen ensin väliaikaiseen valmisteluhakemistoon
+- Vanhojen samannimisten kansikuvien väliaikainen varmistaminen
+- Kansikuvien palautuksen `commit`-toiminto
+- Kansikuvien palautuksen `rollback`-toiminto
+- Palautettavien kansikuvien määrän näyttäminen vahvistusdialogissa
+- JSON- ja ZIP-varmuuskopioiden tiedostomuodon näyttäminen vahvistusdialogissa
+- Tarpeettomiksi jääneiden vanhojen kansikuvien poistaminen onnistuneen palautuksen jälkeen
+- Arkiston pakatun koon enimmäisraja
+- Arkiston puretun sisällön yhteinen enimmäisraja
+- Manifestin, kirjastotiedoston ja yksittäisten kansikuvien kokorajat
+- Arkiston tiedostojen ja hakemistojen määrän enimmäisraja
+- Turvattomien tiedostopolkujen tarkistaminen
+- Windows-asematunnusten ja varattujen tiedostonimien tarkistaminen
+- Symbolisten linkkien hylkääminen ZIP-arkistosta
+- Päällekkäisten arkistomerkintöjen tarkistaminen
+- Puuttuvien kansikuvatiedostojen tarkistaminen
+- Käyttämättömien kansikuvatiedostojen tarkistaminen
+- Tyhjien kansikuvatiedostojen tarkistaminen
+- Manifestin ja kirjastotiedoston luontiaikojen vastaavuuden tarkistaminen
+- JSON-tiedostojen UTF-8-sisällön tarkistaminen
+
+### Muutettu
+
+- Varmuuskopion vienti luo nyt oletuksena kansikuvat sisältävän ZIP-tiedoston
+- JSON-varmuuskopion vientitoiminto säilytettiin palvelutasolla yhteensopivuutta varten
+- Varmuuskopion palautus hyväksyy sekä `.json`- että `.zip`-tiedostot
+- JSON- ja ZIP-varmuuskopiot käyttävät samaa kirjaston `LibraryBackup`-tietomallia
+- `LibraryBackup.currentFormatVersion` säilytettiin arvossa 1
+- ZIP-arkiston rakenne versioidaan erillään kirjaston JSON-rakenteesta
+- Kirjaston eheystarkistus siirrettiin `LibraryBackupValidator`-palveluun
+- Varmuuskopion tiedostonvalitsin päivitettiin tukemaan JSON- ja ZIP-tiedostoja
+- Varmuuskopion vahvistusdialogi näyttää tiedostomuodon
+- ZIP-varmuuskopion vahvistusdialogi näyttää paikallisten kansikuvien määrän
+- Palautuksen ajaksi päänäkymä asetetaan lataustilaan
+- Kansikuvat otetaan käyttöön ennen kirjastotietojen tallentamista odottavana transaktiona
+- Kansikuvien palautus vahvistetaan vasta kirjojen ja kirjahyllyjen onnistuneen tallennuksen jälkeen
+- Tallennusvirheessä yritetään palauttaa aiemmat kirjat, kirjahyllyt ja kansikuvat
+- Uuden ZIP-varmuuskopion kuvaus päivitettiin jakovalikossa
+- Varmuuskopion onnistumisilmoitus näyttää palautettujen kirjojen, hyllyjen ja kansikuvien määrän
+
+### Korjattu
+
+- Korjattu kirjan tietojen katoaminen kirjaa hyllystä toiseen siirrettäessä
+- Kirjan hyllyn vaihtaminen säilyttää nyt oman kansikuvan
+- Kirjan hyllyn vaihtaminen säilyttää nyt lukutilan
+- Kirjan hyllyn vaihtaminen säilyttää nyt arvosanan
+- Kirjan hyllyn vaihtaminen säilyttää nyt muistiinpanon
+- Estetty ZIP-varmuuskopion kirjoittaminen sovelluksen kansikuvahakemiston ulkopuolelle
+- Estetty polut, jotka sisältävät `..`- tai `.`-segmenttejä
+- Estetty absoluuttiset Unix- ja Windows-polut
+- Estetty alihakemistojen käyttäminen kansikuvatiedostojen nimissä
+- Estetty tyhjien kansikuvatiedostojen palauttaminen
+- Estetty puuttuvaan kansikuvatiedostoon viittaavan varmuuskopion palauttaminen
+- Estetty ylimääräisiä käyttämättömiä kansikuvia sisältävän arkiston palauttaminen
+- Estetty tuntemattomia tiedostoja tai hakemistoja sisältävän arkiston palauttaminen
+- Estetty manifestittoman ZIP-varmuuskopion palauttaminen
+- Estetty `library.json`-tiedostottoman ZIP-varmuuskopion palauttaminen
+- Estetty tuntemattoman ZIP-arkistoversion palauttaminen
+- Estetty virheellisen My Shelf -formaattitunnisteen sisältävän arkiston palauttaminen
+- Estetty liian suuren ZIP-arkiston purkaminen
+- Estetty aiemman samannimisen kansikuvan häviäminen epäonnistuneessa palautuksessa
+- Estetty uuden kansikuvatiedoston jääminen tallennustilaan palautuksen peruuntuessa
+- Estetty palautuksen väliaikaishakemistojen jääminen tallennustilaan vahvistuksen tai perumisen jälkeen
+
+### Testattu
+
+- ZIP-varmuuskopion manifestin JSON-muunnos
+- Manifestin nykyinen arkistoversio
+- Virheellisen formaattitunnisteen hylkääminen
+- Tuntemattoman arkistoversion hylkääminen
+- Virheellisen manifestin luontiajan hylkääminen
+- ZIP-arkiston muodostaminen manifestista, kirjastosta ja kansikuvista
+- ZIP-arkiston muodostaminen ilman paikallisia kansikuvia
+- Tarpeettomien kansikuvatiedostojen jättäminen arkiston ulkopuolelle
+- Puuttuvan kansikuvatiedoston hylkääminen viennissä
+- Tyhjän kansikuvatiedoston hylkääminen viennissä
+- Turvattoman kansikuvatiedostonimen hylkääminen viennissä
+- Kahden kirjan yhteisen kansikuvan lisääminen arkistoon vain kerran
+- Paikallisen kansikuvatiedoston lukeminen vientipalvelussa
+- Kahden kirjan yhteisen kansikuvan lukeminen vain kerran
+- Vientipalvelun toiminta ilman paikallisia kansikuvia
+- Kelvollisen ZIP-varmuuskopion lukeminen
+- Virheellisen ZIP-tiedoston hylkääminen
+- Puuttuvan `manifest.json`-tiedoston hylkääminen
+- Puuttuvan `library.json`-tiedoston hylkääminen
+- Turvattoman arkistopolun hylkääminen
+- Puuttuvan viitatun kansikuvan hylkääminen
+- Käyttämättömän kansikuvan hylkääminen
+- Tyhjän kansikuvatiedoston hylkääminen
+- Tietosisällöltään epäkelvon kirjaston hylkääminen
+- JSON-varmuuskopion tunnistaminen tiedostopäätteestä
+- ZIP-varmuuskopion tunnistaminen tiedostopäätteestä
+- Tiedostopäätteen kirjainkoosta riippumaton tunnistaminen
+- Tuntemattoman tiedostomuodon hylkääminen
+- Virheellisen UTF-8-muotoisen JSON-tiedoston hylkääminen
+- Uuden kansikuvan ottaminen käyttöön
+- Kansikuvien palautuksen vahvistaminen
+- Uuden kansikuvan poistaminen rollbackissa
+- Ylikirjoitetun vanhan kansikuvan palauttaminen rollbackissa
+- Turvattoman tiedostonimen hylkääminen ennen tiedostojen kirjoittamista
+- Tyhjän kansikuvan hylkääminen ennen palautuksen aloittamista
+- Vahvistetun palautustapahtuman uudelleenkäytön estäminen
+- ZIP-varmuuskopion vienti oikealla laitteella
+- ZIP-varmuuskopion palautus oikealla laitteella
+- Käyttäjän omien kansikuvien siirtyminen varmuuskopion mukana
+- Vanhan JSON-varmuuskopion palauttaminen oikealla laitteella
+- Kirjojen, kirjahyllyjen, lukutilojen, arvosanojen ja muistiinpanojen säilyminen palautuksessa
+- Flutter-analyysi
+- Kaikki 98 automaattista testiä
+
+### Tunnetut rajoitukset
+
+- Aiemmissa versioissa luodut JSON-varmuuskopiot eivät sisällä varsinaisia paikallisia kansikuvatiedostoja
+- JSON-varmuuskopiosta palautettu kirja voi viitata paikalliseen kansikuvatiedostonimeen, jota toisella laitteella ei ole
+- Varmuuskopiointi käynnistetään edelleen käyttäjän toimesta eikä automaattisia varmuuskopioita vielä ole
 
 ## [0.9.0-alpha] - 2026-08-02
 
