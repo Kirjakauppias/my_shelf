@@ -2,6 +2,14 @@
 
 ### Suunnitteilla
 
+- Finna uutena suomalaisiin kirjoihin painottuvana ISBN-hakulähteenä
+- ISBN-haun tulosten yhdistäminen useista tietolähteistä
+- Hakutulosten kenttäkohtainen täydentäminen
+- Täsmällisen ISBN-osuman tarkistaminen
+- Parempi suomalaisten kirjojen ja painosten tunnistaminen
+- Kansikuvan valitseminen useista tietolähteistä
+- ISBN-10- ja ISBN-13-tunnusten normalisointi ja validointi
+- Hakulähteiden automaattiset testit
 - Kirjahyllyjen järjestäminen
 - Lajittelu kirjan lisäysajan perusteella
 - Lukemisen aloitus- ja lopetuspäivämäärät
