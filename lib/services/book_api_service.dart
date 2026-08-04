@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/book.dart';
+import 'book_api_exception.dart';
 
 class BookApiService {
   static const Duration _requestTimeout = Duration(seconds: 15);
@@ -229,13 +230,4 @@ class BookApiService {
 
     return colors[colorIndex];
   }
-}
-
-class BookApiException implements Exception {
-  final String message;
-
-  const BookApiException(this.message);
-
-  @override
-  String toString() => message;
 }
