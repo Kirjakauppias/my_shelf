@@ -1,9 +1,8 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-import '../models/book.dart';
+import '../models/book_search_result.dart';
 import '../utils/isbn_utils.dart';
 import 'book_api_exception.dart';
 
@@ -18,7 +17,7 @@ class FinnaBookSearchService {
   FinnaBookSearchService({FinnaHttpGet? get})
     : _get = get ?? ((uri) => http.get(uri));
 
-  Future<Book?> findBookByIsbn(String isbn) async {
+  Future<BookSearchResult?> findBookByIsbn(String isbn) async {
     final normalizedIsbn = IsbnUtils.normalize(isbn);
 
     if (!IsbnUtils.isValid(normalizedIsbn)) {
@@ -84,10 +83,10 @@ class FinnaBookSearchService {
         continue;
       }
 
-      final book = _bookFromRecord(record, isbn: normalizedIsbn);
+      final result = _resultFromRecord(record, isbn: normalizedIsbn);
 
-      if (book != null) {
-        return book;
+      if (result.hasAnyData) {
+        return result;
       }
     }
 
@@ -172,8 +171,6 @@ class FinnaBookSearchService {
       '',
     );
 
-    // Finna voi palauttaa esimerkiksi:
-    // 978-951-0-31435-7 (sid.)
     value = value.split('(').first.trim();
 
     final normalizedIsbn = IsbnUtils.normalize(value);
@@ -181,26 +178,29 @@ class FinnaBookSearchService {
     return IsbnUtils.isValid(normalizedIsbn) ? normalizedIsbn : null;
   }
 
-  Book? _bookFromRecord(Map<String, dynamic> record, {required String isbn}) {
+  BookSearchResult _resultFromRecord(
+    Map<String, dynamic> record, {
+    required String isbn,
+  }) {
     final title = _readNonEmptyString(record['title']);
+    final author = _readAuthor(record);
 
-    if (title == null) {
-      return null;
-    }
-
-    return Book(
-      id: isbn,
-      shelfId: 'default-shelf',
+    return BookSearchResult(
+      source: BookDataSource.finna,
       isbn: isbn,
       title: title,
-      author: _readAuthor(record),
+      author: author,
       pageCount: _readPageCount(record),
-      coverUrl: _readCoverUrl(record),
-      spineColor: _createSpineColor(isbn),
+      coverUrl: _readCoverUrl(
+        record,
+        requestedIsbn: isbn,
+        title: title,
+        author: author,
+      ),
     );
   }
 
-  String _readAuthor(Map<String, dynamic> record) {
+  String? _readAuthor(Map<String, dynamic> record) {
     final authorsRaw = record['authors'];
 
     if (authorsRaw is Map) {
@@ -256,14 +256,14 @@ class FinnaBookSearchService {
       }
     }
 
-    return 'Tuntematon kirjailija';
+    return null;
   }
 
-  int _readPageCount(Map<String, dynamic> record) {
+  int? _readPageCount(Map<String, dynamic> record) {
     final descriptionsRaw = record['physicalDescriptions'];
 
     if (descriptionsRaw is! List) {
-      return 300;
+      return null;
     }
 
     final pageExpression = RegExp(
@@ -277,6 +277,7 @@ class FinnaBookSearchService {
       }
 
       final match = pageExpression.firstMatch(value);
+
       final pageCount = int.tryParse(match?.group(1) ?? '');
 
       if (pageCount != null && pageCount > 0) {
@@ -284,10 +285,69 @@ class FinnaBookSearchService {
       }
     }
 
-    return 300;
+    return null;
   }
 
-  String? _readCoverUrl(Map<String, dynamic> record) {
+  String? _readCoverUrl(
+    Map<String, dynamic> record, {
+    required String requestedIsbn,
+    required String? title,
+    required String? author,
+  }) {
+    final recordId = _readNonEmptyString(record['id']);
+
+    // Finna.fi:n oma käyttöliittymä hakee kirjojen kansia
+    // tietueen tunnisteen lisäksi ISBN:n, nimen ja tekijän avulla.
+    //
+    // Tämä löytää kansia, joita pelkkä API:n images-kenttä
+    // tai /Cover/Show?id=... ei välttämättä löydä.
+    if (recordId != null) {
+      final recordIsbns = _readRecordIsbns(record).toSet().toList();
+
+      final normalizedRequestedIsbn = IsbnUtils.normalize(requestedIsbn);
+
+      if (!recordIsbns.contains(normalizedRequestedIsbn)) {
+        recordIsbns.add(normalizedRequestedIsbn);
+      }
+
+      // ISBN-10 ensin ja ISBN-13 sen jälkeen, kuten Finnan
+      // omissa kansikuvaosoitteissa usein tehdään.
+      recordIsbns.sort((first, second) {
+        final lengthComparison = first.length.compareTo(second.length);
+
+        if (lengthComparison != 0) {
+          return lengthComparison;
+        }
+
+        return first.compareTo(second);
+      });
+
+      final queryParameters = <String, String>{
+        'author': author ?? '',
+        'callnumber': '',
+        'index': '0',
+        'invisbn':
+            IsbnUtils.toIsbn13(normalizedRequestedIsbn) ??
+            normalizedRequestedIsbn,
+        'recordid': recordId,
+        'size': 'large',
+        'source': 'Solr',
+        'title': title ?? '',
+      };
+
+      for (var index = 0; index < recordIsbns.length; index++) {
+        queryParameters['isbns[$index]'] = recordIsbns[index];
+      }
+
+      return Uri.https(
+        'www.finna.fi',
+        '/Cover/Show',
+        queryParameters,
+      ).toString();
+    }
+
+    // Jos tietueen tunnistetta ei poikkeuksellisesti ole,
+    // käytetään API:n suoraan palauttamaa kuvaosoitetta.
     final imagesRaw = record['images'];
 
     if (imagesRaw is! List) {
@@ -327,20 +387,5 @@ class FinnaBookSearchService {
     final trimmedValue = value.trim();
 
     return trimmedValue.isEmpty ? null : trimmedValue;
-  }
-
-  Color _createSpineColor(String isbn) {
-    const colors = [
-      Color(0xFF8D3B3B),
-      Color(0xFF335C67),
-      Color(0xFF6B705C),
-      Color(0xFF8A5A44),
-      Color(0xFF5E548E),
-      Color(0xFF9C6644),
-      Color(0xFF3D5A80),
-      Color(0xFF7F5539),
-    ];
-
-    return colors[isbn.hashCode.abs() % colors.length];
   }
 }

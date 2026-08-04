@@ -4,118 +4,226 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/book.dart';
+import '../models/book_search_result.dart';
+import '../utils/isbn_utils.dart';
 import 'book_api_exception.dart';
+import 'finna_book_search_service.dart';
+
+typedef BookApiHttpGet = Future<http.Response> Function(Uri uri);
 
 class BookApiService {
   static const Duration _requestTimeout = Duration(seconds: 15);
 
-  /// Hakee kirjan ISBN-tunnuksen perusteella.
-  ///
-  /// Hakujärjestys:
-  /// 1. Google Books
-  /// 2. Open Library
-  ///
-  /// Palauttaa null-arvon, jos kirjaa ei löydy kummastakaan palvelusta.
-  Future<Book?> findBookByIsbn(String isbn) async {
-    final normalizedIsbn = _normalizeIsbn(isbn);
+  final BookApiHttpGet _get;
+  final FinnaBookSearchService _finnaService;
 
-    Object? googleError;
-    Object? openLibraryError;
+  BookApiService({BookApiHttpGet? get, FinnaBookSearchService? finnaService})
+    : _get = get ?? _defaultHttpGet,
+      _finnaService =
+          finnaService ?? FinnaBookSearchService(get: get ?? _defaultHttpGet);
 
-    try {
-      final googleBook = await _findFromGoogleBooks(normalizedIsbn);
-
-      if (googleBook != null) {
-        return googleBook;
-      }
-    } catch (error) {
-      googleError = error;
-    }
-
-    try {
-      final openLibraryBook = await _findFromOpenLibrary(normalizedIsbn);
-
-      if (openLibraryBook != null) {
-        return openLibraryBook;
-      }
-    } catch (error) {
-      openLibraryError = error;
-    }
-
-    // Jos molemmat palvelut epäonnistuivat tekniseen virheeseen,
-    // näytetään käyttäjälle verkkohakuun liittyvä virhe.
-    if (googleError != null && openLibraryError != null) {
-      throw const BookApiException(
-        'Kirjan tietojen hakeminen epäonnistui molemmista kirjapalveluista.',
-      );
-    }
-
-    // Ainakin toinen palvelu vastasi normaalisti, mutta kirjaa ei löytynyt.
-    return null;
+  static Future<http.Response> _defaultHttpGet(Uri uri) {
+    return http.get(uri);
   }
 
-  /// Hakee kirjan Google Books API:sta.
-  Future<Book?> _findFromGoogleBooks(String isbn) async {
-    final uri = Uri.https('www.googleapis.com', '/books/v1/volumes', {
-      'q': 'isbn:$isbn',
-      'maxResults': '1',
-      'printType': 'books',
-    });
+  /// Hakee kirjan ISBN-tunnuksen perusteella useasta palvelusta.
+  ///
+  /// Finna ja Google Books haetaan rinnakkain. Open Librarya käytetään,
+  /// jos kahden ensimmäisen palvelun tuloksista puuttuu tietoja.
+  Future<Book?> findBookByIsbn(String isbn) async {
+    final normalizedIsbn = IsbnUtils.normalize(isbn);
 
-    final response = await http.get(uri).timeout(_requestTimeout);
+    if (!IsbnUtils.isValid(normalizedIsbn)) {
+      throw const BookApiException('ISBN-tunnus ei ole kelvollinen.');
+    }
 
-    if (response.statusCode != 200) {
-      throw BookApiException(
-        'Google Books palautti virheen ${response.statusCode}.',
+    final primaryAttempts = await Future.wait([
+      _attemptSearch(() => _finnaService.findBookByIsbn(normalizedIsbn)),
+      _attemptSearch(() => _findFromGoogleBooks(normalizedIsbn)),
+    ]);
+
+    final results = <BookSearchResult>[];
+    var attemptedSourceCount = primaryAttempts.length;
+    var technicalErrorCount = 0;
+
+    for (final attempt in primaryAttempts) {
+      final result = attempt.result;
+
+      if (result != null) {
+        results.add(result);
+      }
+
+      if (attempt.error != null) {
+        technicalErrorCount += 1;
+      }
+    }
+
+    var mergedData = _mergeResults(results);
+
+    if (_needsAdditionalSource(mergedData)) {
+      final openLibraryAttempt = await _attemptSearch(
+        () => _findFromOpenLibrary(normalizedIsbn),
       );
+
+      attemptedSourceCount += 1;
+
+      if (openLibraryAttempt.result != null) {
+        results.add(openLibraryAttempt.result!);
+      }
+
+      if (openLibraryAttempt.error != null) {
+        technicalErrorCount += 1;
+      }
+
+      mergedData = _mergeResults(results);
     }
 
-    final decodedResponse = jsonDecode(response.body) as Map<String, dynamic>;
+    if (!mergedData.hasAnyData) {
+      if (technicalErrorCount == attemptedSourceCount) {
+        throw const BookApiException(
+          'Kirjan tietojen hakeminen epäonnistui '
+          'kaikista kirjapalveluista.',
+        );
+      }
 
-    final items = decodedResponse['items'] as List<dynamic>?;
-
-    if (items == null || items.isEmpty) {
       return null;
     }
-
-    final firstItem = Map<String, dynamic>.from(items.first as Map);
-
-    final volumeInfoRaw = firstItem['volumeInfo'];
-
-    if (volumeInfoRaw is! Map) {
-      return null;
-    }
-
-    final volumeInfo = Map<String, dynamic>.from(volumeInfoRaw);
-
-    final title = volumeInfo['title'] as String? ?? 'Tuntematon kirja';
-
-    final authorsRaw = volumeInfo['authors'] as List<dynamic>?;
-
-    final author = authorsRaw == null || authorsRaw.isEmpty
-        ? 'Tuntematon kirjailija'
-        : authorsRaw.map((author) => author.toString()).join(', ');
-
-    final pageCountRaw = volumeInfo['pageCount'];
-
-    final pageCount = pageCountRaw is num ? pageCountRaw.toInt() : 300;
-
-    final coverUrl = _readGoogleCoverUrl(volumeInfo);
 
     return Book(
-      id: isbn,
+      id: normalizedIsbn,
       shelfId: 'default-shelf',
-      isbn: isbn,
-      title: title,
-      author: author,
-      pageCount: pageCount,
-      coverUrl: coverUrl,
-      spineColor: _createSpineColor(isbn),
+      isbn: normalizedIsbn,
+      title: mergedData.title ?? 'Tuntematon kirja',
+      author: mergedData.author ?? 'Tuntematon kirjailija',
+      pageCount: mergedData.pageCount ?? 300,
+      coverUrl: mergedData.coverUrl,
+      spineColor: _createSpineColor(normalizedIsbn),
     );
   }
 
+  Future<_BookSearchAttempt> _attemptSearch(
+    Future<BookSearchResult?> Function() search,
+  ) async {
+    try {
+      return _BookSearchAttempt(result: await search());
+    } on Object catch (error) {
+      return _BookSearchAttempt(error: error);
+    }
+  }
+
+  /// Hakee kirjan Google Books API:sta.
+  Future<BookSearchResult?> _findFromGoogleBooks(String isbn) async {
+    final uri = Uri.https('www.googleapis.com', '/books/v1/volumes', {
+      'q': 'isbn:$isbn',
+      'maxResults': '5',
+      'printType': 'books',
+    });
+
+    final response = await _get(uri).timeout(_requestTimeout);
+
+    if (response.statusCode != 200) {
+      throw BookApiException(
+        'Google Books palautti virheen '
+        '${response.statusCode}.',
+      );
+    }
+
+    final decodedResponse = _decodeJsonObject(
+      response,
+      serviceName: 'Google Books',
+    );
+
+    final itemsRaw = decodedResponse['items'];
+
+    if (itemsRaw is! List) {
+      return null;
+    }
+
+    for (final itemRaw in itemsRaw) {
+      if (itemRaw is! Map) {
+        continue;
+      }
+
+      final item = Map<String, dynamic>.from(itemRaw);
+      final volumeInfoRaw = item['volumeInfo'];
+
+      if (volumeInfoRaw is! Map) {
+        continue;
+      }
+
+      final volumeInfo = Map<String, dynamic>.from(volumeInfoRaw);
+
+      if (!_googleRecordMatchesIsbn(volumeInfo, isbn)) {
+        continue;
+      }
+
+      final authorsRaw = volumeInfo['authors'];
+
+      String? author;
+
+      if (authorsRaw is List) {
+        final authorNames = authorsRaw
+            .map((value) => value.toString().trim())
+            .where((value) => value.isNotEmpty)
+            .toList();
+
+        if (authorNames.isNotEmpty) {
+          author = authorNames.join(', ');
+        }
+      }
+
+      final pageCountRaw = volumeInfo['pageCount'];
+
+      final pageCount = pageCountRaw is num && pageCountRaw > 0
+          ? pageCountRaw.toInt()
+          : null;
+
+      final result = BookSearchResult(
+        source: BookDataSource.googleBooks,
+        isbn: isbn,
+        title: _readNonEmptyString(volumeInfo['title']),
+        author: author,
+        pageCount: pageCount,
+        coverUrl: _readGoogleCoverUrl(volumeInfo),
+      );
+
+      if (result.hasAnyData) {
+        return result;
+      }
+    }
+
+    return null;
+  }
+
+  bool _googleRecordMatchesIsbn(
+    Map<String, dynamic> volumeInfo,
+    String requestedIsbn,
+  ) {
+    final identifiersRaw = volumeInfo['industryIdentifiers'];
+
+    if (identifiersRaw is! List) {
+      return false;
+    }
+
+    for (final identifierRaw in identifiersRaw) {
+      if (identifierRaw is! Map) {
+        continue;
+      }
+
+      final identifier = Map<String, dynamic>.from(identifierRaw);
+
+      final value = identifier['identifier'];
+
+      if (value is String && IsbnUtils.areEquivalent(value, requestedIsbn)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   /// Hakee kirjan Open Libraryn Search API:sta.
-  Future<Book?> _findFromOpenLibrary(String isbn) async {
+  Future<BookSearchResult?> _findFromOpenLibrary(String isbn) async {
     final uri = Uri.https('openlibrary.org', '/search.json', {
       'q': 'isbn:$isbn',
       'fields': [
@@ -126,63 +234,161 @@ class BookApiService {
         'cover_i',
         'isbn',
       ].join(','),
-      'limit': '1',
+      'limit': '5',
     });
 
-    final response = await http.get(uri).timeout(_requestTimeout);
+    final response = await _get(uri).timeout(_requestTimeout);
 
     if (response.statusCode != 200) {
       throw BookApiException(
-        'Open Library palautti virheen ${response.statusCode}.',
+        'Open Library palautti virheen '
+        '${response.statusCode}.',
       );
     }
 
-    final decodedResponse = jsonDecode(response.body) as Map<String, dynamic>;
+    final decodedResponse = _decodeJsonObject(
+      response,
+      serviceName: 'Open Library',
+    );
 
-    final documents = decodedResponse['docs'] as List<dynamic>? ?? <dynamic>[];
+    final documentsRaw = decodedResponse['docs'];
 
-    if (documents.isEmpty) {
+    if (documentsRaw is! List) {
       return null;
     }
 
-    final document = Map<String, dynamic>.from(documents.first as Map);
+    for (final documentRaw in documentsRaw) {
+      if (documentRaw is! Map) {
+        continue;
+      }
 
-    final title = document['title'] as String? ?? 'Tuntematon kirja';
+      final document = Map<String, dynamic>.from(documentRaw);
 
-    final authorNames =
-        document['author_name'] as List<dynamic>? ?? <dynamic>[];
+      if (!_openLibraryRecordMatchesIsbn(document, isbn)) {
+        continue;
+      }
 
-    final author = authorNames.isEmpty
-        ? 'Tuntematon kirjailija'
-        : authorNames.map((name) => name.toString()).join(', ');
+      final authorNamesRaw = document['author_name'];
 
-    final pageCountRaw = document['number_of_pages_median'];
+      String? author;
 
-    final pageCount = pageCountRaw is num ? pageCountRaw.toInt() : 300;
+      if (authorNamesRaw is List) {
+        final authorNames = authorNamesRaw
+            .map((value) => value.toString().trim())
+            .where((value) => value.isNotEmpty)
+            .toList();
 
-    final coverId = document['cover_i'];
+        if (authorNames.isNotEmpty) {
+          author = authorNames.join(', ');
+        }
+      }
 
-    final coverUrl = coverId is num
-        ? 'https://covers.openlibrary.org/b/id/'
-              '${coverId.toInt()}-L.jpg'
-        : null;
+      final pageCountRaw = document['number_of_pages_median'];
 
-    return Book(
-      id: isbn,
-      shelfId: 'default-shelf',
-      isbn: isbn,
-      title: title,
-      author: author,
-      pageCount: pageCount,
-      coverUrl: coverUrl,
-      spineColor: _createSpineColor(isbn),
+      final pageCount = pageCountRaw is num && pageCountRaw > 0
+          ? pageCountRaw.toInt()
+          : null;
+
+      final coverId = document['cover_i'];
+
+      final coverUrl = coverId is num
+          ? 'https://covers.openlibrary.org/b/id/'
+                '${coverId.toInt()}-L.jpg'
+          : null;
+
+      final result = BookSearchResult(
+        source: BookDataSource.openLibrary,
+        isbn: isbn,
+        title: _readNonEmptyString(document['title']),
+        author: author,
+        pageCount: pageCount,
+        coverUrl: coverUrl,
+      );
+
+      if (result.hasAnyData) {
+        return result;
+      }
+    }
+
+    return null;
+  }
+
+  bool _openLibraryRecordMatchesIsbn(
+    Map<String, dynamic> document,
+    String requestedIsbn,
+  ) {
+    final isbnValues = document['isbn'];
+
+    if (isbnValues is! List) {
+      return false;
+    }
+
+    for (final value in isbnValues) {
+      if (value is String && IsbnUtils.areEquivalent(value, requestedIsbn)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  _MergedBookData _mergeResults(List<BookSearchResult> results) {
+    BookSearchResult? finna;
+    BookSearchResult? google;
+    BookSearchResult? openLibrary;
+
+    for (final result in results) {
+      switch (result.source) {
+        case BookDataSource.finna:
+          finna ??= result;
+
+        case BookDataSource.googleBooks:
+          google ??= result;
+
+        case BookDataSource.openLibrary:
+          openLibrary ??= result;
+      }
+    }
+
+    return _MergedBookData(
+      title: finna?.title ?? google?.title ?? openLibrary?.title,
+      author: finna?.author ?? google?.author ?? openLibrary?.author,
+      pageCount:
+          finna?.pageCount ?? google?.pageCount ?? openLibrary?.pageCount,
+
+      // Google ja Open Library asetetaan Finnan edelle,
+      // koska Finnan kuvapalvelu voi palauttaa puuttuvan
+      // kannen tilalla pienen läpinäkyvän GIF-kuvan.
+      coverUrl: google?.coverUrl ?? openLibrary?.coverUrl ?? finna?.coverUrl,
     );
   }
 
-  /// Lukee Google Booksin kansikuvan osoitteen.
-  ///
-  /// Suositaan suurempaa kuvaa, mutta käytetään tarvittaessa
-  /// pienempää vaihtoehtoa.
+  bool _needsAdditionalSource(_MergedBookData data) {
+    return data.title == null ||
+        data.author == null ||
+        data.pageCount == null ||
+        data.coverUrl == null;
+  }
+
+  Map<String, dynamic> _decodeJsonObject(
+    http.Response response, {
+    required String serviceName,
+  }) {
+    try {
+      final decoded = jsonDecode(
+        utf8.decode(response.bodyBytes, allowMalformed: false),
+      );
+
+      if (decoded is! Map) {
+        throw const FormatException();
+      }
+
+      return Map<String, dynamic>.from(decoded);
+    } on Object {
+      throw BookApiException('$serviceName palautti virheellisen vastauksen.');
+    }
+  }
+
   String? _readGoogleCoverUrl(Map<String, dynamic> volumeInfo) {
     final imageLinksRaw = volumeInfo['imageLinks'];
 
@@ -193,27 +399,30 @@ class BookApiService {
     final imageLinks = Map<String, dynamic>.from(imageLinksRaw);
 
     final coverUrl =
+        imageLinks['extraLarge'] ??
         imageLinks['large'] ??
         imageLinks['medium'] ??
         imageLinks['small'] ??
         imageLinks['thumbnail'] ??
         imageLinks['smallThumbnail'];
 
-    if (coverUrl is! String || coverUrl.isEmpty) {
+    if (coverUrl is! String || coverUrl.trim().isEmpty) {
       return null;
     }
 
-    // Google Books voi palauttaa kuvan HTTP-osoitteena.
-    // Androidissa ja webissä HTTPS toimii luotettavammin.
     return coverUrl.replaceFirst('http://', 'https://');
   }
 
-  /// Poistaa ISBN-tunnuksesta välilyönnit ja väliviivat.
-  String _normalizeIsbn(String isbn) {
-    return isbn.replaceAll(RegExp(r'[\s-]'), '').toUpperCase();
+  String? _readNonEmptyString(Object? value) {
+    if (value is! String) {
+      return null;
+    }
+
+    final trimmedValue = value.trim();
+
+    return trimmedValue.isEmpty ? null : trimmedValue;
   }
 
-  /// Valitsee ISBN:n perusteella samalle kirjalle aina saman värin.
   Color _createSpineColor(String isbn) {
     const colors = [
       Color(0xFF8D3B3B),
@@ -226,8 +435,34 @@ class BookApiService {
       Color(0xFF7F5539),
     ];
 
-    final colorIndex = isbn.hashCode.abs() % colors.length;
+    return colors[isbn.hashCode.abs() % colors.length];
+  }
+}
 
-    return colors[colorIndex];
+class _BookSearchAttempt {
+  final BookSearchResult? result;
+  final Object? error;
+
+  const _BookSearchAttempt({this.result, this.error});
+}
+
+class _MergedBookData {
+  final String? title;
+  final String? author;
+  final int? pageCount;
+  final String? coverUrl;
+
+  const _MergedBookData({
+    this.title,
+    this.author,
+    this.pageCount,
+    this.coverUrl,
+  });
+
+  bool get hasAnyData {
+    return title != null ||
+        author != null ||
+        pageCount != null ||
+        coverUrl != null;
   }
 }
