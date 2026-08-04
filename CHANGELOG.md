@@ -1,6 +1,5 @@
 ## [Unreleased]
 
-## [0.11.0-alpha] - 2026-08-04
 
 ### Lisätty
 
