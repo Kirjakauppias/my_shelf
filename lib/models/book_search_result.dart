@@ -30,4 +30,15 @@ class BookSearchResult {
         pageCount != null ||
         coverUrl != null;
   }
+
+  /// Luo saman hakutuloksen ilman kansikuvaa.
+BookSearchResult withoutCover() {
+  return BookSearchResult(
+    source: source,
+    isbn: isbn,
+    title: title,
+    author: author,
+    pageCount: pageCount,
+  );
+}
 }

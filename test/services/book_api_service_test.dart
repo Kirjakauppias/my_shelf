@@ -66,6 +66,81 @@ void main() {
     });
 
     test(
+  'hylkää Finnan 10 x 10 paikkamerkin ja käyttää '
+  'Open Libraryn kansikuvaa',
+  () async {
+    final service = BookApiService(
+      finnaService: _FakeFinnaBookSearchService(
+        (_) async {
+          return const BookSearchResult(
+            source: BookDataSource.finna,
+            isbn: requestedIsbn,
+            title: 'Suomalainen kirja',
+            author: 'Suomalainen kirjailija',
+            pageCount: 320,
+            coverUrl:
+                'https://www.finna.fi/'
+                'Cover/Show?id=test-record',
+          );
+        },
+      ),
+      get: (uri) async {
+        if (uri.host == 'www.googleapis.com') {
+          return _jsonResponse({
+            'items': [],
+          });
+        }
+
+        if (uri.host == 'www.finna.fi' &&
+            uri.path == '/Cover/Show') {
+          return http.Response.bytes(
+            _gifHeader(width: 10, height: 10),
+            200,
+            headers: const {
+              'content-type': 'image/gif',
+            },
+          );
+        }
+
+        if (uri.host == 'openlibrary.org') {
+          return _jsonResponse({
+            'docs': [
+              {
+                'title': 'Open Libraryn kirja',
+                'author_name': [
+                  'Open Libraryn kirjailija',
+                ],
+                'number_of_pages_median': 320,
+                'cover_i': 98765,
+                'isbn': [
+                  requestedIsbn,
+                ],
+              },
+            ],
+          });
+        }
+
+        throw StateError(
+          'Odottamaton palvelu: ${uri.host}',
+        );
+      },
+    );
+
+    final book = await service.findBookByIsbn(
+      requestedIsbn,
+    );
+
+    expect(book, isNotNull);
+
+    expect(
+      book!.coverUrl,
+      'https://covers.openlibrary.org/'
+      'b/id/98765-L.jpg',
+    );
+  },
+);
+
+    test(
       'Google Books ohittaa väärän painoksen ja valitsee täsmällisen ISBN-osuman',
       () async {
         final service = BookApiService(
@@ -340,4 +415,22 @@ http.Response _jsonResponse(Map<String, dynamic> data) {
     200,
     headers: const {'content-type': 'application/json; charset=utf-8'},
   );
+}
+
+List<int> _gifHeader({
+  required int width,
+  required int height,
+}) {
+  return <int>[
+    0x47,
+    0x49,
+    0x46,
+    0x38,
+    0x39,
+    0x61,
+    width & 0xFF,
+    (width >> 8) & 0xFF,
+    height & 0xFF,
+    (height >> 8) & 0xFF,
+  ];
 }
