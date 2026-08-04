@@ -1,15 +1,117 @@
 ## [Unreleased]
 
-### Suunnitteilla
+## [0.11.0-alpha] - 2026-08-04
+
+### Lisätty
 
 - Finna uutena suomalaisiin kirjoihin painottuvana ISBN-hakulähteenä
-- ISBN-haun tulosten yhdistäminen useista tietolähteistä
-- Hakutulosten kenttäkohtainen täydentäminen
-- Täsmällisen ISBN-osuman tarkistaminen
-- Parempi suomalaisten kirjojen ja painosten tunnistaminen
-- Kansikuvan valitseminen useista tietolähteistä
-- ISBN-10- ja ISBN-13-tunnusten normalisointi ja validointi
-- Hakulähteiden automaattiset testit
+- `FinnaBookSearchService` kirjojen hakemiseen Finna-palvelusta
+- `BookSearchResult` eri kirjatietopalvelujen hakutulosten yhteiseksi tietomalliksi
+- `BookDataSource` hakutuloksen lähteen tunnistamiseen
+- `IsbnUtils` ISBN-tunnusten normalisointiin, validointiin ja vertailuun
+- ISBN-10- ja ISBN-13-tunnusten tarkistusnumeroiden validointi
+- ISBN-10-tunnuksen muuntaminen vastaavaksi ISBN-13-tunnukseksi
+- ISBN-10- ja ISBN-13-tunnusten keskinäisen vastaavuuden tunnistaminen
+- Täsmällisen ISBN-painoksen tarkistaminen Finna-tuloksista
+- Täsmällisen ISBN-painoksen tarkistaminen Google Books -tuloksista
+- Täsmällisen ISBN-painoksen tarkistaminen Open Library -tuloksista
+- Useiden Finna-hakutulosten läpikäynti oikean ISBN-painoksen löytämiseksi
+- Finna-, Google Books- ja Open Library -tietojen kenttäkohtainen yhdistäminen
+- Finna- ja Google Books -hakujen rinnakkainen suorittaminen
+- Open Library varalähteeksi puuttuvien tietojen täydentämiseen
+- Finnan tietueen tunnisteeseen ja kirjan metatietoihin perustuva kansikuvahaku
+- `FinnaCoverValidator` Finnan kansikuvavastausten tarkistamiseen
+- Finnan 10 × 10 pikselin läpinäkyvän GIF-paikkamerkin tunnistaminen
+- Käyttökelvottoman Finna-kannen poistaminen hakutuloksesta
+- Open Libraryn kansikuvan käyttäminen, kun Finnan kansi on paikkamerkki
+- `BookSearchResult.withoutCover()` hakutuloksen säilyttämiseen ilman käyttökelvotonta kansikuvaa
+- Yhteinen `BookApiException` kirjahakupalvelujen virheiden käsittelyyn
+
+### Muutettu
+
+- ISBN-dialogi käyttää nyt rakenteellisen tarkistuksen lisäksi ISBN:n oikeaa tarkistusnumeroa
+- ISBN-tunnuksesta poistetaan välilyönnit ja väliviivat ennen hakua
+- ISBN-tunnuksen X-tarkistusmerkki muunnetaan isoksi kirjaimeksi
+- Kirjahaku käyttää nyt Google Booksin ja Open Libraryn lisäksi Finnaa
+- Kirjan nimi ja tekijä valitaan ensisijaisesti Finnasta
+- Puuttuvia sivumäärä- ja kansikuvatietoja täydennetään muista kirjapalveluista
+- Google Booksin hakutulosten enimmäismäärä nostettiin yhteen tulokseen rajoittumisen sijasta
+- Open Libraryn hakutulosten enimmäismäärä nostettiin yhteen tulokseen rajoittumisen sijasta
+- Google Booksin ja Open Libraryn tuloksia ei enää hyväksytä ilman haettua ISBN-painosta vastaavaa tunnistetta
+- Open Librarya kutsutaan vain, jos Finnan ja Google Booksin tuloksista puuttuu edelleen tietoja
+- Yhden kirjapalvelun tekninen virhe ei enää estä muiden palvelujen tulosten käyttämistä
+- Tekninen virhe näytetään käyttäjälle vasta, jos kaikki käytetyt kirjapalvelut epäonnistuvat
+- Finnan kansikuva muodostetaan samalla metatietopohjaisella `/Cover/Show`-haulla, jolla myös Finna-verkkopalvelu löytää vanhempien kirjojen kansia
+- Kansikuvaksi valitaan käyttökelpoinen kuva Google Booksista, Open Librarysta tai Finnasta
+- Kirja palautetaan ilman verkkokantta, jos mikään palvelu ei tarjoa käyttökelpoista kansikuvaa
+
+### Korjattu
+
+- Korjattu suomalaisten kirjojen heikko löytyminen pelkillä Google Books- ja Open Library -hauilla
+- Korjattu väärän kirjan tai väärän painoksen hyväksyminen epätarkan ISBN-hakutuloksen perusteella
+- Korjattu vanhempien suomalaisten kirjojen Finna-kansien puuttuminen sovelluksesta
+- Korjattu tilanne, jossa Finna-sivulla näkyvä kansikuva ei löytynyt pelkän API:n `images`-kentän avulla
+- Korjattu Finnan suhteellisten kansikuvaosoitteiden muodostaminen täydellisiksi HTTPS-osoitteiksi
+- Estetty Finnan 10 × 10 pikselin läpinäkyvän GIF-paikkamerkin näyttäminen kirjan kantena
+- Estetty virheellisen ISBN-tarkistusnumeron sisältävän tunnuksen lähettäminen verkkohakuun
+- Estetty yhden kirjapalvelun verkkovirhettä katkaisemasta koko ISBN-hakua
+- Korjattu puuttuvan sivumäärän käsittely niin, että toinen palvelu voi täydentää tiedon ennen oletusarvon käyttämistä
+- Korjattu puuttuvan tekijän käsittely niin, että toinen palvelu voi täydentää tiedon
+- Korjattu puuttuvan kansikuvan käsittely niin, että toinen palvelu voi tarjota varakannen
+
+### Testattu
+
+- ISBN-tunnuksen välilyöntien ja väliviivojen poistaminen
+- Kelvollisen ISBN-13-tunnuksen tarkistus
+- Kelvollisen ISBN-10-tunnuksen tarkistus
+- Virheellisen ISBN-tarkistusnumeron hylkääminen
+- ISBN-10- ja ISBN-13-tunnusten vastaavuuden tunnistaminen
+- ISBN-10-tunnuksen muuntaminen ISBN-13-muotoon
+- Finna-hakupyynnön osoite ja hakuehdot
+- Finna-haun kirjaformaattirajaus
+- Täsmällisen Finna-ISBN-osuman valitseminen
+- Väärän Finna-painoksen ohittaminen
+- ISBN-10- ja ISBN-13-muotojen tunnistaminen samaksi Finna-painokseksi
+- Finnan päätekijän lukeminen
+- Finnan vaihtoehtoisen tekijäkentän käyttäminen
+- Finnan sivumäärän lukeminen fyysisestä kuvauksesta
+- Finnan kansikuvaosoitteen muodostaminen
+- Finna-haun HTTP-virheen käsittely
+- Virheellisen Finna-vastauksen käsittely
+- Finnan ja Google Booksin tietojen yhdistäminen
+- Finnan nimen ja tekijän käyttäminen Google Booksin tietojen sijasta
+- Google Booksin sivumäärän käyttäminen Finnan tiedon puuttuessa
+- Google Booksin kansikuvan käyttäminen Finnan perustietojen kanssa
+- Väärän Google Books -painoksen ohittaminen
+- Täsmällisen Google Books -ISBN-osuman valitseminen
+- Open Libraryn käyttäminen varalähteenä
+- Väärän Open Library -painoksen ohittaminen
+- Finnan teknisen virheen ohittaminen Google Books -tuloksen löytyessä
+- Kaikkien kirjapalvelujen teknisen virheen käsittely
+- Verkkohakujen estäminen virheellisellä ISBN-tunnuksella
+- Null-arvon palauttaminen, kun täsmällistä ISBN-osumaa ei löydy
+- Finnan 10 × 10 pikselin GIF-paikkamerkin hylkääminen
+- Oikean kokoisen GIF-kansikuvan hyväksyminen
+- Muun kuin kuvasisällön hylkääminen kansikuvana
+- Epäonnistuneen kansikuva-HTTP-vastauksen hylkääminen
+- Kansikuvan tarkistuksen verkkovirheen käsittely
+- Open Libraryn kannen käyttäminen Finnan paikkamerkin sijasta
+- Suomalaisten kirjojen ISBN-haku oikealla laitteella
+- Uusien ja vanhempien suomalaisten kirjojen Finna-kansikuvat oikealla laitteella
+- Kirjat, joille Finna ei tarjoa kansikuvaa
+- Flutter-analyysi
+- Kaikki 123 automaattista testiä
+
+### Tunnetut rajoitukset
+
+- Kirjatietojen ja verkkokansien hakeminen edellyttää verkkoyhteyttä
+- Hakutulosten kattavuus riippuu Finnan, Google Booksin ja Open Libraryn aineistoista
+- Kaikille kirjoille ei ole saatavilla kansikuvaa missään käytetyssä kirjapalvelussa
+- Jos käyttökelpoista verkkokantta ei löydy, sovellus näyttää oman varakantensa
+- Kirjahaku ei vielä tallenna tai näytä kustantajaa, julkaisuvuotta tai kieltä
+
+### Suunnitteilla
+
 - Kirjahyllyjen järjestäminen
 - Lajittelu kirjan lisäysajan perusteella
 - Lukemisen aloitus- ja lopetuspäivämäärät
