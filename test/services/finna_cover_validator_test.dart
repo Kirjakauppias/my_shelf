@@ -3,8 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:my_shelf/services/finna_cover_validator.dart';
 
 void main() {
-  const coverUrl =
-      'https://www.finna.fi/Cover/Show?id=test';
+  const coverUrl = 'https://www.finna.fi/Cover/Show?id=test';
 
   group('FinnaCoverValidator', () {
     test('hylkää läpinäkyvän 10 x 10 GIF-paikkamerkin', () async {
@@ -13,15 +12,12 @@ void main() {
           return http.Response.bytes(
             _gifHeader(width: 10, height: 10),
             200,
-            headers: const {
-              'content-type': 'image/gif',
-            },
+            headers: const {'content-type': 'image/gif'},
           );
         },
       );
 
-      final result =
-          await validator.isUsableCoverUrl(coverUrl);
+      final result = await validator.isUsableCoverUrl(coverUrl);
 
       expect(result, isFalse);
     });
@@ -32,15 +28,12 @@ void main() {
           return http.Response.bytes(
             _gifHeader(width: 300, height: 450),
             200,
-            headers: const {
-              'content-type': 'image/gif',
-            },
+            headers: const {'content-type': 'image/gif'},
           );
         },
       );
 
-      final result =
-          await validator.isUsableCoverUrl(coverUrl);
+      final result = await validator.isUsableCoverUrl(coverUrl);
 
       expect(result, isTrue);
     });
@@ -51,15 +44,12 @@ void main() {
           return http.Response(
             '<html>Ei kuvaa</html>',
             200,
-            headers: const {
-              'content-type': 'text/html',
-            },
+            headers: const {'content-type': 'text/html'},
           );
         },
       );
 
-      final result =
-          await validator.isUsableCoverUrl(coverUrl);
+      final result = await validator.isUsableCoverUrl(coverUrl);
 
       expect(result, isFalse);
     });
@@ -71,8 +61,7 @@ void main() {
         },
       );
 
-      final result =
-          await validator.isUsableCoverUrl(coverUrl);
+      final result = await validator.isUsableCoverUrl(coverUrl);
 
       expect(result, isFalse);
     });
@@ -84,18 +73,14 @@ void main() {
         },
       );
 
-      final result =
-          await validator.isUsableCoverUrl(coverUrl);
+      final result = await validator.isUsableCoverUrl(coverUrl);
 
       expect(result, isFalse);
     });
   });
 }
 
-List<int> _gifHeader({
-  required int width,
-  required int height,
-}) {
+List<int> _gifHeader({required int width, required int height}) {
   return <int>[
     0x47, // G
     0x49, // I

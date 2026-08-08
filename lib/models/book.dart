@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'book_binding.dart';
 
 enum ReadingStatus { unread, reading, read }
 
@@ -25,6 +26,10 @@ class Book {
   final String author;
   final int pageCount;
 
+  final int? publicationYear;
+  final String? publisher;
+  final BookBinding binding;
+
   /// ISBN-haun tai muun verkkopalvelun palauttama kansikuva.
   final String? coverUrl;
 
@@ -46,6 +51,9 @@ class Book {
     required this.title,
     required this.author,
     required this.pageCount,
+    this.publicationYear,
+    this.publisher,
+    this.binding = BookBinding.unknown,
     this.coverUrl,
     this.customCoverFileName,
     required this.spineColor,
@@ -76,6 +84,11 @@ class Book {
     String? title,
     String? author,
     int? pageCount,
+    int? publicationYear,
+    bool clearPublicationYear = false,
+    String? publisher,
+    bool clearPublisher = false,
+    BookBinding? binding,
     String? coverUrl,
     String? customCoverFileName,
     bool clearCustomCover = false,
@@ -92,6 +105,11 @@ class Book {
       title: title ?? this.title,
       author: author ?? this.author,
       pageCount: pageCount ?? this.pageCount,
+      publicationYear: clearPublicationYear
+          ? null
+          : publicationYear ?? this.publicationYear,
+      publisher: clearPublisher ? null : publisher ?? this.publisher,
+      binding: binding ?? this.binding,
       coverUrl: coverUrl ?? this.coverUrl,
       customCoverFileName: clearCustomCover
           ? null
@@ -111,6 +129,9 @@ class Book {
       'title': title,
       'author': author,
       'pageCount': pageCount,
+      'publicationYear': publicationYear,
+      'publisher': publisher,
+      'binding': binding.name,
       'coverUrl': coverUrl,
       'customCoverFileName': customCoverFileName,
       'spineColor': spineColor.toARGB32(),
@@ -148,6 +169,39 @@ class Book {
         ? customCoverValue.trim()
         : null;
 
+    final publicationYearValue = json['publicationYear'];
+
+    if (publicationYearValue != null &&
+        (publicationYearValue is! int ||
+            publicationYearValue < 1 ||
+            publicationYearValue > 9999)) {
+      throw const FormatException(
+        'Kirjan julkaisuvuoden täytyy olla välillä 1–9999.',
+      );
+    }
+
+    final publisherValue = json['publisher'];
+
+    if (publisherValue != null && publisherValue is! String) {
+      throw const FormatException('Kirjan kustantajan täytyy olla merkkijono.');
+    }
+
+    final publisher =
+        publisherValue is String && publisherValue.trim().isNotEmpty
+        ? publisherValue.trim()
+        : null;
+
+    final bindingName = json['binding'];
+
+    if (bindingName != null && bindingName is! String) {
+      throw const FormatException('Kirjan sidosasun täytyy olla merkkijono.');
+    }
+
+    final binding = BookBinding.values.firstWhere(
+      (value) => value.name == bindingName,
+      orElse: () => BookBinding.unknown,
+    );
+
     return Book(
       id: json['id'] as String,
       shelfId: json['shelfId'] as String? ?? 'default-shelf',
@@ -155,6 +209,9 @@ class Book {
       title: json['title'] as String,
       author: json['author'] as String,
       pageCount: json['pageCount'] as int,
+      publicationYear: publicationYearValue as int?,
+      publisher: publisher,
+      binding: binding,
       coverUrl: json['coverUrl'] as String?,
       customCoverFileName: customCoverFileName,
       spineColor: Color(json['spineColor'] as int),

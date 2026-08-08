@@ -1,3 +1,5 @@
+import 'book_binding.dart';
+
 /// Kirjatietoja palauttava tietolähde.
 enum BookDataSource { finna, googleBooks, openLibrary }
 
@@ -13,6 +15,9 @@ class BookSearchResult {
   final String? author;
   final int? pageCount;
   final String? coverUrl;
+  final int? publicationYear;
+  final String? publisher;
+  final BookBinding? binding;
 
   const BookSearchResult({
     required this.source,
@@ -20,6 +25,9 @@ class BookSearchResult {
     this.title,
     this.author,
     this.pageCount,
+    this.publicationYear,
+    this.publisher,
+    this.binding,
     this.coverUrl,
   });
 
@@ -28,17 +36,23 @@ class BookSearchResult {
     return title != null ||
         author != null ||
         pageCount != null ||
+        publicationYear != null ||
+        publisher != null ||
+        binding != null ||
         coverUrl != null;
   }
 
   /// Luo saman hakutuloksen ilman kansikuvaa.
-BookSearchResult withoutCover() {
-  return BookSearchResult(
-    source: source,
-    isbn: isbn,
-    title: title,
-    author: author,
-    pageCount: pageCount,
-  );
-}
+  BookSearchResult withoutCover() {
+    return BookSearchResult(
+      source: source,
+      isbn: isbn,
+      title: title,
+      author: author,
+      pageCount: pageCount,
+      publicationYear: publicationYear,
+      publisher: publisher,
+      binding: binding,
+    );
+  }
 }

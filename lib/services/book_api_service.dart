@@ -20,20 +20,15 @@ class BookApiService {
   final FinnaCoverValidator _finnaCoverValidator;
 
   BookApiService({
-  BookApiHttpGet? get,
-  FinnaBookSearchService? finnaService,
-  FinnaCoverValidator? finnaCoverValidator,
-}) : _get = get ?? _defaultHttpGet,
-     _finnaService =
-         finnaService ??
-         FinnaBookSearchService(
-           get: get ?? _defaultHttpGet,
-         ),
-     _finnaCoverValidator =
-         finnaCoverValidator ??
-         FinnaCoverValidator(
-           get: get ?? _defaultHttpGet,
-         );
+    BookApiHttpGet? get,
+    FinnaBookSearchService? finnaService,
+    FinnaCoverValidator? finnaCoverValidator,
+  }) : _get = get ?? _defaultHttpGet,
+       _finnaService =
+           finnaService ?? FinnaBookSearchService(get: get ?? _defaultHttpGet),
+       _finnaCoverValidator =
+           finnaCoverValidator ??
+           FinnaCoverValidator(get: get ?? _defaultHttpGet);
 
   static Future<http.Response> _defaultHttpGet(Uri uri) {
     return http.get(uri);
@@ -74,17 +69,17 @@ class BookApiService {
     var mergedData = _mergeResults(results);
 
     // Finnan URL voi palauttaa puuttuvan kannen tilalla
-// läpinäkyvän 10 × 10 pikselin GIF-kuvan.
-//
-// Tarkistus tehdään vain silloin, kun Finnan kuva olisi
-// oikeasti valittu lopulliseksi kansikuvaksi. Jos Google
-// Booksista löytyi kansi, ylimääräistä verkkopyyntöä ei tehdä.
-if (mergedData.coverSource == BookDataSource.finna) {
-  await _removeUnusableFinnaCover(results);
-  mergedData = _mergeResults(results);
-}
+    // läpinäkyvän 10 × 10 pikselin GIF-kuvan.
+    //
+    // Tarkistus tehdään vain silloin, kun Finnan kuva olisi
+    // oikeasti valittu lopulliseksi kansikuvaksi. Jos Google
+    // Booksista löytyi kansi, ylimääräistä verkkopyyntöä ei tehdä.
+    if (mergedData.coverSource == BookDataSource.finna) {
+      await _removeUnusableFinnaCover(results);
+      mergedData = _mergeResults(results);
+    }
 
-if (_needsAdditionalSource(mergedData)) {
+    if (_needsAdditionalSource(mergedData)) {
       final openLibraryAttempt = await _attemptSearch(
         () => _findFromOpenLibrary(normalizedIsbn),
       );
@@ -376,32 +371,24 @@ if (_needsAdditionalSource(mergedData)) {
 
     final BookSearchResult? coverResult;
 
-if (google?.coverUrl != null) {
-  coverResult = google;
-} else if (openLibrary?.coverUrl != null) {
-  coverResult = openLibrary;
-} else if (finna?.coverUrl != null) {
-  coverResult = finna;
-} else {
-  coverResult = null;
-}
+    if (google?.coverUrl != null) {
+      coverResult = google;
+    } else if (openLibrary?.coverUrl != null) {
+      coverResult = openLibrary;
+    } else if (finna?.coverUrl != null) {
+      coverResult = finna;
+    } else {
+      coverResult = null;
+    }
 
     return _MergedBookData(
-  title:
-      finna?.title ??
-      google?.title ??
-      openLibrary?.title,
-  author:
-      finna?.author ??
-      google?.author ??
-      openLibrary?.author,
-  pageCount:
-      finna?.pageCount ??
-      google?.pageCount ??
-      openLibrary?.pageCount,
-  coverUrl: coverResult?.coverUrl,
-  coverSource: coverResult?.source,
-);
+      title: finna?.title ?? google?.title ?? openLibrary?.title,
+      author: finna?.author ?? google?.author ?? openLibrary?.author,
+      pageCount:
+          finna?.pageCount ?? google?.pageCount ?? openLibrary?.pageCount,
+      coverUrl: coverResult?.coverUrl,
+      coverSource: coverResult?.source,
+    );
   }
 
   bool _needsAdditionalSource(_MergedBookData data) {
@@ -479,31 +466,26 @@ if (google?.coverUrl != null) {
     return colors[isbn.hashCode.abs() % colors.length];
   }
 
-  Future<void> _removeUnusableFinnaCover(
-  List<BookSearchResult> results,
-) async {
-  final finnaResultIndex = results.indexWhere(
-    (result) =>
-        result.source == BookDataSource.finna &&
-        result.coverUrl != null,
-  );
+  Future<void> _removeUnusableFinnaCover(List<BookSearchResult> results) async {
+    final finnaResultIndex = results.indexWhere(
+      (result) =>
+          result.source == BookDataSource.finna && result.coverUrl != null,
+    );
 
-  if (finnaResultIndex == -1) {
-    return;
+    if (finnaResultIndex == -1) {
+      return;
+    }
+
+    final finnaResult = results[finnaResultIndex];
+
+    final isUsableCover = await _finnaCoverValidator.isUsableCoverUrl(
+      finnaResult.coverUrl,
+    );
+
+    if (!isUsableCover) {
+      results[finnaResultIndex] = finnaResult.withoutCover();
+    }
   }
-
-  final finnaResult = results[finnaResultIndex];
-
-  final isUsableCover =
-      await _finnaCoverValidator.isUsableCoverUrl(
-        finnaResult.coverUrl,
-      );
-
-  if (!isUsableCover) {
-    results[finnaResultIndex] =
-        finnaResult.withoutCover();
-  }
-}
 }
 
 class _BookSearchAttempt {
