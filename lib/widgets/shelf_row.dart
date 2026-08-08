@@ -5,6 +5,7 @@ import 'book_spine.dart';
 
 class ShelfRow extends StatelessWidget {
   final List<Book> books;
+  final bool showReadingStatusBadges;
 
   final void Function(Book book) onBookTap;
   final void Function({required Book draggedBook, required Book targetBook})
@@ -21,6 +22,7 @@ class ShelfRow extends StatelessWidget {
     required this.onMoveToEnd,
     required this.showEndDropTarget,
     required this.onBookTap,
+    this.showReadingStatusBadges = false,
   });
 
   @override
@@ -57,6 +59,7 @@ class ShelfRow extends StatelessWidget {
                     onTap: () {
                       onBookTap(book);
                     },
+                    showReadingStatusBadge: showReadingStatusBadges,
                   ),
                 );
               },

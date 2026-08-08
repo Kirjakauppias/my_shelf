@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../models/book.dart';
 import '../services/book_api_service.dart';
+import '../utils/isbn_utils.dart';
+import '../services/book_api_exception.dart';
 
 class IsbnSearchDialog extends StatefulWidget {
   final String? initialIsbn;
@@ -48,9 +50,9 @@ class _IsbnSearchDialogState extends State<IsbnSearchDialog> {
 
   Future<void> _searchBook() async {
     final isbn = _isbnController.text.trim();
-    final normalizedIsbn = isbn.replaceAll(RegExp(r'[\s-]'), '');
+    final normalizedIsbn = IsbnUtils.normalize(isbn);
 
-    if (!_isValidIsbn(normalizedIsbn)) {
+    if (!IsbnUtils.isValid(normalizedIsbn)) {
       setState(() {
         _foundBook = null;
         _errorMessage = 'Syötä kelvollinen ISBN-10 tai ISBN-13.';
@@ -101,11 +103,6 @@ class _IsbnSearchDialogState extends State<IsbnSearchDialog> {
             'Tarkista verkkoyhteys.';
       });
     }
-  }
-
-  bool _isValidIsbn(String isbn) {
-    return RegExp(r'^\d{13}$').hasMatch(isbn) ||
-        RegExp(r'^\d{9}[\dXx]$').hasMatch(isbn);
   }
 
   void _addBook() {

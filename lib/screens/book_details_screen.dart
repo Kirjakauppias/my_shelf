@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../models/book.dart';
 import '../dialogs/manual_book_dialog.dart';
+import '../services/custom_cover_service.dart';
+import '../widgets/book_cover_hero.dart';
+import '../widgets/shelf_board.dart';
 
 class BookDetailsResult {
   final bool deleted;
@@ -18,16 +21,16 @@ class BookDetailsResult {
 class BookDetailsScreen extends StatelessWidget {
   final Book book;
 
+  static final CustomCoverService _customCoverService = CustomCoverService();
+
   const BookDetailsScreen({super.key, required this.book});
 
   void _closeWithResult(BuildContext context, BookDetailsResult result) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!context.mounted) {
-        return;
-      }
+    if (!context.mounted) {
+      return;
+    }
 
-      Navigator.of(context).pop(result);
-    });
+    Navigator.of(context).pop(result);
   }
 
   IconData _readingStatusIcon(ReadingStatus status) {
@@ -248,6 +251,100 @@ class BookDetailsScreen extends StatelessWidget {
     _closeWithResult(context, BookDetailsResult.updated(updatedBook));
   }
 
+  Future<void> _changeCover(BuildContext context) async {
+    final action = await showModalBottomSheet<_CoverAction>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: Text(
+                  book.customCoverFileName == null
+                      ? 'Valitse oma kansikuva'
+                      : 'Vaihda oma kansikuva',
+                ),
+                subtitle: const Text('Valitse kuva laitteen galleriasta'),
+                onTap: () {
+                  Navigator.of(
+                    sheetContext,
+                  ).pop(_CoverAction.chooseFromGallery);
+                },
+              ),
+              if (book.customCoverFileName != null)
+                ListTile(
+                  leading: const Icon(Icons.restore),
+                  title: Text(
+                    book.coverUrl?.trim().isNotEmpty == true
+                        ? 'Palauta verkkokansi'
+                        : 'Poista oma kansikuva',
+                  ),
+                  subtitle: Text(
+                    book.coverUrl?.trim().isNotEmpty == true
+                        ? 'Kirjalle haettu alkuperäinen kansi otetaan käyttöön'
+                        : 'Kirjalle näytetään automaattinen varakansi',
+                  ),
+                  onTap: () {
+                    Navigator.of(
+                      sheetContext,
+                    ).pop(_CoverAction.removeCustomCover);
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (action == null || !context.mounted) {
+      return;
+    }
+
+    switch (action) {
+      case _CoverAction.chooseFromGallery:
+        await _chooseCoverFromGallery(context);
+        break;
+
+      case _CoverAction.removeCustomCover:
+        final shouldRemove = await _confirmRemoveCustomCover(context);
+
+        if (!shouldRemove || !context.mounted) {
+          return;
+        }
+
+        final updatedBook = book.copyWith(clearCustomCover: true);
+
+        _closeWithResult(context, BookDetailsResult.updated(updatedBook));
+        break;
+    }
+  }
+
+  Future<void> _chooseCoverFromGallery(BuildContext context) async {
+    try {
+      final fileName = await _customCoverService.pickAndSaveFromGallery(
+        bookId: book.id,
+      );
+
+      if (fileName == null || !context.mounted) {
+        return;
+      }
+
+      final updatedBook = book.copyWith(customCoverFileName: fileName);
+
+      _closeWithResult(context, BookDetailsResult.updated(updatedBook));
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kansikuvan tallentaminen epäonnistui.')),
+      );
+    }
+  }
+
   Future<void> _editBook(BuildContext context) async {
     final updatedBook = await showDialog<Book>(
       context: context,
@@ -263,162 +360,158 @@ class BookDetailsScreen extends StatelessWidget {
     _closeWithResult(context, BookDetailsResult.updated(updatedBook));
   }
 
+  Widget _buildBookHeader(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFEBD8BC), Color(0xFFDEC09A), Color(0xFFD2AB7E)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF805033), width: 2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x26000000),
+            blurRadius: 10,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _BookCover(
+            book: book,
+            onChangeCover: () {
+              _changeCover(context);
+            },
+          ),
+          const SizedBox(height: 22),
+          Text(
+            book.title,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              color: const Color(0xFF3F281B),
+              fontWeight: FontWeight.bold,
+              height: 1.15,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            book.author,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+              height: 1.25,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Kirjan tiedot')),
+      backgroundColor: const Color(0xFFF7F1E9),
+      appBar: AppBar(
+        title: const Text('Kirjan tiedot'),
+        centerTitle: true,
+        backgroundColor: const Color(0xFFF7F1E9),
+        surfaceTintColor: Colors.transparent,
+        actions: [
+          IconButton(
+            tooltip: 'Muokkaa kirjan tietoja',
+            onPressed: () {
+              _editBook(context);
+            },
+            icon: const Icon(Icons.edit_outlined),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _BookCover(coverUrl: book.coverUrl),
-              const SizedBox(height: 24),
-              Text(
-                book.title,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                book.author,
-                textAlign: TextAlign.center,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(color: Colors.black54),
-              ),
-              const SizedBox(height: 28),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    children: [
-                      _BookDetailRow(
-                        icon: Icons.numbers,
-                        label: 'ISBN',
-                        value: book.isbn ?? 'Ei saatavilla',
-                      ),
-                      const Divider(),
-                      _BookDetailRow(
-                        icon: Icons.format_list_numbered,
-                        label: 'Sivumäärä',
-                        value: '${book.pageCount}',
-                      ),
-                      const Divider(),
-                      _BookDetailRow(
-                        icon: _readingStatusIcon(book.readingStatus),
-                        label: 'Lukutila',
-                        value: book.readingStatus.label,
-                      ),
-                      const Divider(),
-                      _BookDetailRow(
-                        icon: book.rating == null
-                            ? Icons.star_border
-                            : Icons.star,
-                        label: 'Arvosana',
-                        value: _ratingLabel(book.rating),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.notes_outlined,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Muistiinpano',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        book.notes.trim().isEmpty
-                            ? 'Ei muistiinpanoa'
-                            : book.notes,
-                        style: TextStyle(
-                          color: book.notes.trim().isEmpty
-                              ? Colors.black54
-                              : null,
-                          fontStyle: book.notes.trim().isEmpty
-                              ? FontStyle.italic
-                              : FontStyle.normal,
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              OutlinedButton.icon(
-                onPressed: () {
-                  _changeReadingStatus(context);
-                },
-                icon: Icon(_readingStatusIcon(book.readingStatus)),
-                label: Text('Muuta lukutilaa: ${book.readingStatus.label}'),
-              ),
-              const SizedBox(height: 10),
+              _buildBookHeader(context),
 
-              OutlinedButton.icon(
-                onPressed: () {
-                  _changeRating(context);
-                },
-                icon: Icon(
-                  book.rating == null ? Icons.star_border : Icons.star,
-                ),
-                label: Text(
-                  book.rating == null
-                      ? 'Anna arvosana'
-                      : 'Muuta arvosanaa: ${book.rating} / 5',
+              _buildSectionTitle(context, 'Lukeminen'),
+              Card(
+                clipBehavior: Clip.antiAlias,
+                margin: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    _BookDetailRow(
+                      icon: _readingStatusIcon(book.readingStatus),
+                      label: 'Lukutila',
+                      value: book.readingStatus.label,
+                      onTap: () {
+                        _changeReadingStatus(context);
+                      },
+                    ),
+                    const Divider(height: 1),
+                    _BookDetailRow(
+                      icon: book.rating == null
+                          ? Icons.star_border
+                          : Icons.star,
+                      label: 'Arvosana',
+                      value: _ratingLabel(book.rating),
+                      onTap: () {
+                        _changeRating(context);
+                      },
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: () {
-                  _editNotes(context);
-                },
-                icon: const Icon(Icons.notes_outlined),
-                label: Text(
-                  book.notes.trim().isEmpty
-                      ? 'Lisää muistiinpano'
-                      : 'Muokkaa muistiinpanoa',
+
+              _buildSectionTitle(context, 'Kirjan tiedot'),
+              Card(
+                clipBehavior: Clip.antiAlias,
+                margin: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    _BookDetailRow(
+                      icon: Icons.numbers,
+                      label: 'ISBN',
+                      value: book.isbn ?? 'Ei saatavilla',
+                    ),
+                    const Divider(height: 1),
+                    _BookDetailRow(
+                      icon: Icons.format_list_numbered,
+                      label: 'Sivumäärä',
+                      value: '${book.pageCount}',
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: () {
-                  _editBook(context);
-                },
-                icon: const Icon(Icons.edit_outlined),
-                label: const Text('Muokkaa kirjaa'),
-              ),
-              const SizedBox(height: 10),
-              FilledButton.icon(
+
+              _buildSectionTitle(context, 'Muistiinpano'),
+              _buildNotesCard(context),
+
+              const SizedBox(height: 28),
+
+              TextButton.icon(
                 onPressed: () {
                   _confirmDelete(context);
                 },
-                //onPressed: null,
                 icon: const Icon(Icons.delete_outline),
-                label: const Text('Poista kirja'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.error,
-                  foregroundColor: Theme.of(context).colorScheme.onError,
+                label: const Text('Poista kirja kirjahyllystä'),
+                style: TextButton.styleFrom(
+                  foregroundColor: colorScheme.error,
+                  minimumSize: const Size.fromHeight(48),
                 ),
               ),
             ],
@@ -427,53 +520,167 @@ class BookDetailsScreen extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildSectionTitle(BuildContext context, String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 22, 4, 8),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.bold,
+          color: const Color(0xFF4A2919),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotesCard(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final hasNotes = book.notes.trim().isNotEmpty;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        onTap: () {
+          _editNotes(context);
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.notes_outlined, color: colorScheme.primary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Oma muistiinpano',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                hasNotes
+                    ? book.notes
+                    : 'Napauta lisätäksesi oman muistiinpanon kirjasta.',
+                maxLines: hasNotes ? 6 : 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: hasNotes
+                      ? colorScheme.onSurface
+                      : colorScheme.onSurfaceVariant,
+                  fontStyle: hasNotes ? FontStyle.normal : FontStyle.italic,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _confirmRemoveCustomCover(BuildContext context) async {
+    final hasNetworkCover = book.coverUrl?.trim().isNotEmpty == true;
+
+    final shouldRemove = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(
+            hasNetworkCover ? 'Palauta verkkokansi' : 'Poista oma kansikuva',
+          ),
+          content: Text(
+            hasNetworkCover
+                ? 'Haluatko poistaa itse valitsemasi kannen ja palauttaa kirjalle verkosta haetun kansikuvan?'
+                : 'Haluatko poistaa itse valitsemasi kansikuvan? Kirjalle näytetään tämän jälkeen automaattinen varakansi.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
+              },
+              child: const Text('Peruuta'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: Text(
+                hasNetworkCover ? 'Palauta verkkokansi' : 'Poista kansikuva',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    return shouldRemove ?? false;
+  }
 }
 
-class _BookCover extends StatelessWidget {
-  final String? coverUrl;
+enum _CoverAction { chooseFromGallery, removeCustomCover }
 
-  const _BookCover({required this.coverUrl});
+class _BookCover extends StatelessWidget {
+  final Book book;
+  final VoidCallback onChangeCover;
+
+  const _BookCover({required this.book, required this.onChangeCover});
 
   @override
   Widget build(BuildContext context) {
-    if (coverUrl == null) {
-      return Center(
-        child: Container(
-          width: 150,
-          height: 220,
-          decoration: BoxDecoration(
-            color: const Color(0xFFE8DDD3),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          alignment: Alignment.center,
-          child: const Icon(
-            Icons.menu_book,
-            size: 64,
-            color: Color(0xFF6D4C41),
-          ),
-        ),
-      );
-    }
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return Center(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.network(
-          coverUrl!,
-          width: 150,
-          height: 220,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              width: 150,
-              height: 220,
-              color: const Color(0xFFE8DDD3),
-              alignment: Alignment.center,
-              child: const Icon(Icons.broken_image_outlined, size: 56),
-            );
-          },
+    return Column(
+      children: [
+        SizedBox(
+          width: 170,
+          height: 250,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Material(
+                  color: Colors.transparent,
+                  child: Tooltip(
+                    message: 'Vaihda kansikuva',
+                    child: InkWell(
+                      onTap: onChangeCover,
+                      borderRadius: BorderRadius.circular(5),
+                      child: BookCoverHero(book: book, width: 170, height: 250),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 8,
+                bottom: 8,
+                child: Material(
+                  color: colorScheme.surface.withValues(alpha: 0.94),
+                  elevation: 3,
+                  shape: const CircleBorder(),
+                  child: IconButton(
+                    tooltip: 'Vaihda kansikuva',
+                    onPressed: onChangeCover,
+                    icon: const Icon(Icons.photo_camera_outlined),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
+        const SizedBox(height: 2),
+        const SizedBox(width: 210, child: ShelfBoard()),
+      ],
     );
   }
 }
@@ -482,39 +689,66 @@ class _BookDetailRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
+  final VoidCallback? onTap;
 
   const _BookDetailRow({
     required this.icon,
     required this.label,
     required this.value,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, color: Theme.of(context).colorScheme.primary),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(color: Colors.black54, fontSize: 13),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: colorScheme.primaryContainer.withValues(alpha: 0.55),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 21, color: colorScheme.primary),
           ),
-        ),
-      ],
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (onTap != null)
+            Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant),
+        ],
+      ),
     );
+
+    if (onTap == null) {
+      return content;
+    }
+
+    return InkWell(onTap: onTap, child: content);
   }
 }

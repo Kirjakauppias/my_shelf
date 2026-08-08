@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 
 import '../dialogs/manual_book_dialog.dart';
 import '../models/book.dart';
@@ -7,12 +8,17 @@ import '../services/book_storage_service.dart';
 import '../services/shelf_storage_service.dart';
 import '../widgets/bookshelf.dart';
 import '../widgets/isbn_search_dialog.dart';
-import '../widgets/welcome_card.dart';
 import 'barcode_scanner_screen.dart';
 import 'book_details_screen.dart';
 import '../services/backup_export_service.dart';
 import '../services/backup_import_service.dart';
 import '../utils/book_query.dart';
+import '../widgets/book_cover_shelf.dart';
+import '../services/custom_cover_service.dart';
+import '../widgets/shelf_empty_state.dart';
+import '../models/library_view_settings.dart';
+import '../services/library_view_settings_service.dart';
+import '../services/portable_cover_restore_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
     position: 0,
   );
 
+  bool _isSearchOpen = false;
   final BookStorageService _storageService = BookStorageService();
   final ShelfStorageService _shelfStorageService = ShelfStorageService();
   final TextEditingController _searchController = TextEditingController();
@@ -38,16 +45,29 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   String searchQuery = '';
 
+  BookViewMode _bookViewMode = BookViewMode.covers;
+
+  bool _showReadingStatusBadges = false;
+
   final List<Book> books = [];
 
   final BackupExportService _backupExportService = const BackupExportService();
-  final BackupImportService _backupImportService = const BackupImportService();
+  final BackupImportService _backupImportService = BackupImportService();
+  final PortableCoverRestoreService _portableCoverRestoreService =
+      PortableCoverRestoreService();
 
   BookSortOption _selectedSortOption = BookSortOption.custom;
 
   ReadingStatusFilter _selectedReadingStatusFilter = ReadingStatusFilter.all;
 
   BookContentFilter _selectedBookContentFilter = BookContentFilter.all;
+
+  final CustomCoverService _customCoverService = CustomCoverService();
+
+  final LibraryViewSettingsService _libraryViewSettingsService =
+      LibraryViewSettingsService();
+
+  bool _isShelfFullscreen = false;
 
   String _formatBackupDate(DateTime dateTime) {
     final localDateTime = dateTime.toLocal();
@@ -64,46 +84,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return '$day.$month.$year klo $hour:$minute';
   }
-
-  /*int _compareBooksByRating(
-    Book firstBook,
-    Book secondBook, {
-    required bool descending,
-  }) {
-    final firstRating = firstBook.rating;
-    final secondRating = secondBook.rating;
-
-    // Molemmat kirjat ovat arvioimattomia.
-    // Järjestetään ne keskenään nimen mukaan.
-    if (firstRating == null && secondRating == null) {
-      return firstBook.title.toLowerCase().compareTo(
-        secondBook.title.toLowerCase(),
-      );
-    }
-
-    // Arvioimattomat kirjat sijoitetaan aina loppuun.
-    if (firstRating == null) {
-      return 1;
-    }
-
-    if (secondRating == null) {
-      return -1;
-    }
-
-    final ratingComparison = descending
-        ? secondRating.compareTo(firstRating)
-        : firstRating.compareTo(secondRating);
-
-    // Jos arvosanat eroavat, käytetään arvosanojen järjestystä.
-    if (ratingComparison != 0) {
-      return ratingComparison;
-    }
-
-    // Saman arvosanan saaneet kirjat järjestetään nimen mukaan.
-    return firstBook.title.toLowerCase().compareTo(
-      secondBook.title.toLowerCase(),
-    );
-  }*/
 
   List<Book> get visibleBooks {
     return queryBooks(
@@ -130,108 +110,100 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _disabledMoveToEnd(Book draggedBook) {}
 
+  void _openShelfFullscreen() {
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      _isShelfFullscreen = true;
+    });
+  }
+
+  void _closeShelfFullscreen() {
+    setState(() {
+      _isShelfFullscreen = false;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+
     _loadAppData();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isShelfFullscreen) {
+      return _buildFullscreenShelf();
+    }
+    final mediaQuery = MediaQuery.of(context);
+
     final isKeyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
 
+    final isLandscape = mediaQuery.orientation == Orientation.landscape;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'My Shelf',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        backgroundColor: const Color(0xFFF7F3ED),
-        actions: [
-          Builder(
-            builder: (buttonContext) {
-              return IconButton(
-                tooltip: 'Luo varmuuskopio',
-                onPressed: _isLoading
-                    ? null
-                    : () {
-                        _exportBackup(buttonContext);
-                      },
-                icon: const Icon(Icons.backup_outlined),
-              );
-            },
-          ),
-          IconButton(
-            tooltip: 'Palauta varmuuskopio',
-            onPressed: _isLoading ? null : _restoreBackup,
-            icon: const Icon(Icons.restore),
-          ),
-        ],
-      ),
+      floatingActionButton: isLandscape && !isKeyboardVisible
+          ? FloatingActionButton(
+              mini: true,
+              tooltip: 'Skannaa kirja',
+              onPressed: _openBarcodeScanner,
+              child: const Icon(Icons.qr_code_scanner),
+            )
+          : null,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          padding: EdgeInsets.fromLTRB(
+            isLandscape ? 10 : 20,
+            isLandscape ? 6 : 12,
+            isLandscape ? 10 : 20,
+            isLandscape ? 6 : 20,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              WelcomeCard(bookCount: books.length),
-              const SizedBox(height: 12),
+              _buildHeader(),
+              SizedBox(height: isLandscape ? 8 : 18),
+
               Expanded(
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : Column(
                         children: [
                           _buildShelfSelector(),
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Row(
-                              children: [
-                                Expanded(child: _buildSearchField()),
-                                const SizedBox(width: 4),
-                                _buildSortButton(),
-                                _buildReadingStatusFilterButton(),
-                                _buildBookContentFilterButton(),
-                              ],
-                            ),
-                          ),
+                          _buildToolbar(),
                           Expanded(child: _buildShelfContent()),
                         ],
                       ),
               ),
-              if (!isKeyboardVisible) ...[
-                const SizedBox(height: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+
+              if (!isKeyboardVisible && !isLandscape) ...[
+                const SizedBox(height: 14),
+                FilledButton.icon(
+                  onPressed: _openBarcodeScanner,
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: const Text('Skannaa kirja'),
+                  style: const ButtonStyle(
+                    minimumSize: WidgetStatePropertyAll(Size.fromHeight(56)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
                   children: [
-                    FilledButton.icon(
-                      onPressed: _openBarcodeScanner,
-                      icon: const Icon(Icons.qr_code_scanner),
-                      label: const Text('Skannaa kirja'),
-                      style: const ButtonStyle(
-                        minimumSize: WidgetStatePropertyAll(
-                          Size.fromHeight(56),
-                        ),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _openManualIsbnSearch,
+                        icon: const Icon(Icons.keyboard),
+                        label: const Text('Syötä ISBN'),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextButton.icon(
-                            onPressed: _openManualIsbnSearch,
-                            icon: const Icon(Icons.keyboard),
-                            label: const Text('Syötä ISBN'),
-                          ),
-                        ),
-                        Expanded(
-                          child: TextButton.icon(
-                            onPressed: _openManualBookDialog,
-                            icon: const Icon(Icons.edit_outlined),
-                            label: const Text('Lisää käsin'),
-                          ),
-                        ),
-                      ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _openManualBookDialog,
+                        icon: const Icon(Icons.edit_outlined),
+                        label: const Text('Lisää käsin'),
+                      ),
                     ),
                   ],
                 ),
@@ -248,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _storageService.loadBooks(),
       _shelfStorageService.loadShelves(),
     ]);
-
+    await _loadLibraryViewSettings();
     final storedBooks = results[0] as List<Book>;
     final storedShelves = results[1] as List<Shelf>;
 
@@ -377,116 +349,92 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildShelfSelector() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 8, 0, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  key: ValueKey(selectedShelfId),
-                  initialValue: selectedShelfId,
-                  decoration: InputDecoration(
-                    labelText: 'Kirjahylly',
-                    prefixIcon: const Icon(Icons.shelves),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  items: shelves.map((shelf) {
-                    final bookCount = books
-                        .where((book) => book.shelfId == shelf.id)
-                        .length;
-
-                    return DropdownMenuItem<String>(
-                      value: shelf.id,
-                      child: Text(
-                        '${shelf.name} ($bookCount)',
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: _selectShelf,
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              key: ValueKey(selectedShelfId),
+              initialValue: selectedShelfId,
+              isExpanded: true,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.shelves),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              const SizedBox(width: 8),
-              PopupMenuButton<String>(
-                tooltip: 'Hyllyn toiminnot',
-                onSelected: (value) {
-                  switch (value) {
-                    case 'rename':
-                      _openRenameShelfDialog();
-                      break;
+              items: shelves.map((shelf) {
+                final bookCount = books
+                    .where((book) => book.shelfId == shelf.id)
+                    .length;
 
-                    case 'delete':
-                      _confirmDeleteShelf();
-                      break;
-                  }
-                },
-                itemBuilder: (context) {
-                  return [
-                    const PopupMenuItem<String>(
-                      value: 'rename',
-                      child: ListTile(
-                        leading: Icon(Icons.edit_outlined),
-                        title: Text('Nimeä uudelleen'),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                    PopupMenuItem<String>(
-                      value: 'delete',
-                      enabled: selectedShelfId != defaultShelf.id,
-                      child: ListTile(
-                        leading: const Icon(Icons.delete_outline),
-                        title: const Text('Poista hylly'),
-                        contentPadding: EdgeInsets.zero,
-                        enabled: selectedShelfId != defaultShelf.id,
-                      ),
-                    ),
-                  ];
-                },
-                icon: const Icon(Icons.more_vert),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: _openCreateShelfDialog,
-              icon: const Icon(Icons.add),
-              label: const Text('Uusi hylly'),
+                return DropdownMenuItem<String>(
+                  value: shelf.id,
+                  child: Text(
+                    '${shelf.name} ($bookCount)',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                );
+              }).toList(),
+              onChanged: _selectShelf,
             ),
+          ),
+          const SizedBox(width: 8),
+          PopupMenuButton<String>(
+            tooltip: 'Hyllyn toiminnot',
+            onSelected: (value) {
+              switch (value) {
+                case 'create':
+                  _openCreateShelfDialog();
+                  break;
+
+                case 'rename':
+                  _openRenameShelfDialog();
+                  break;
+
+                case 'delete':
+                  _confirmDeleteShelf();
+                  break;
+              }
+            },
+            itemBuilder: (context) {
+              return [
+                const PopupMenuItem<String>(
+                  value: 'create',
+                  child: ListTile(
+                    leading: Icon(Icons.add),
+                    title: Text('Uusi hylly'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem<String>(
+                  value: 'rename',
+                  child: ListTile(
+                    leading: Icon(Icons.edit_outlined),
+                    title: Text('Nimeä uudelleen'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'delete',
+                  enabled: selectedShelfId != defaultShelf.id,
+                  child: ListTile(
+                    leading: const Icon(Icons.delete_outline),
+                    title: const Text('Poista hylly'),
+                    contentPadding: EdgeInsets.zero,
+                    enabled: selectedShelfId != defaultShelf.id,
+                  ),
+                ),
+              ];
+            },
+            icon: const Icon(Icons.more_vert),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyShelf() {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.menu_book_outlined, size: 64),
-            SizedBox(height: 16),
-            Text(
-              'Tämä kirjahylly on vielä tyhjä.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Lisää ensimmäinen kirja skannaamalla viivakoodi tai '
-              'syöttämällä tiedot käsin.',
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -626,11 +574,55 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
+    final previousBook = books[bookIndex];
+
+    final previousCustomCover = previousBook.customCoverFileName;
+
+    final newCustomCover = updatedBook.customCoverFileName;
+
     setState(() {
       books[bookIndex] = updatedBook;
     });
 
-    await _saveBooks();
+    try {
+      await _saveBooks();
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          final rollbackIndex = books.indexWhere(
+            (book) => book.id == previousBook.id,
+          );
+
+          if (rollbackIndex != -1) {
+            books[rollbackIndex] = previousBook;
+          }
+        });
+      }
+
+      // Uusi kuva ehdittiin tallentaa ennen Book-tietojen
+      // tallentamista. Poistetaan se, jos päivitys epäonnistui.
+      if (newCustomCover != null && newCustomCover != previousCustomCover) {
+        await _deleteCustomCoverQuietly(newCustomCover);
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Kirjan muutosten tallentaminen epäonnistui.'),
+        ),
+      );
+
+      return;
+    }
+
+    // Kirjan uusi versio on tallennettu turvallisesti.
+    // Vanhaa omaa kantta ei enää tarvita.
+    if (previousCustomCover != null && previousCustomCover != newCustomCover) {
+      await _deleteCustomCoverQuietly(previousCustomCover);
+    }
 
     if (!mounted) {
       return;
@@ -648,18 +640,42 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
+    final removedBook = books[bookIndex];
+
     setState(() {
       books.removeAt(bookIndex);
     });
 
-    await _saveBooks();
+    try {
+      await _saveBooks();
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          final restoreIndex = bookIndex <= books.length
+              ? bookIndex
+              : books.length;
+
+          books.insert(restoreIndex, removedBook);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Kirjan poistaminen epäonnistui.')),
+        );
+      }
+
+      return;
+    }
+
+    await _deleteCustomCoverQuietly(removedBook.customCoverFileName);
 
     if (!mounted) {
       return;
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${book.title} poistettiin kirjahyllystä.')),
+      SnackBar(
+        content: Text('${removedBook.title} poistettiin kirjahyllystä.'),
+      ),
     );
   }
 
@@ -957,7 +973,11 @@ class _HomeScreenState extends State<HomeScreen> {
       author: book.author,
       pageCount: book.pageCount,
       coverUrl: book.coverUrl,
+      customCoverFileName: book.customCoverFileName,
       spineColor: book.spineColor,
+      readingStatus: book.readingStatus,
+      rating: book.rating,
+      notes: book.notes,
     );
   }
 
@@ -1177,13 +1197,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSearchField() {
+  Widget _buildSearchField({bool autofocus = false}) {
     return TextField(
       controller: _searchController,
+      autofocus: autofocus,
       textInputAction: TextInputAction.search,
       decoration: InputDecoration(
-        labelText: 'Hae kirjoista',
-        hintText: 'Nimi, tekijä tai ISBN',
+        hintText: 'Hae kirjoista',
         prefixIcon: const Icon(Icons.search),
         suffixIcon: searchQuery.isEmpty
             ? null
@@ -1192,7 +1212,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: const Icon(Icons.clear),
                 onPressed: _clearSearch,
               ),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
       ),
       onChanged: (value) {
         setState(() {
@@ -1210,6 +1230,16 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _closeSearch() {
+    _searchController.clear();
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      searchQuery = '';
+      _isSearchOpen = false;
+    });
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -1220,171 +1250,66 @@ class _HomeScreenState extends State<HomeScreen> {
     return books.where((book) => book.shelfId == selectedShelfId).toList();
   }
 
-  Widget _buildNoSearchResults() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Ei hakutuloksia',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Haulla "$searchQuery" ei löytynyt kirjoja.',
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: _clearSearch,
-              child: const Text('Tyhjennä haku'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildShelfContent() {
-    if (selectedShelfBooks.isEmpty) {
-      return _buildEmptyShelf();
-    }
+    final hasSearchQuery = searchQuery.trim().isNotEmpty;
 
-    if (visibleBooks.isEmpty && searchQuery.trim().isNotEmpty) {
-      return _buildNoSearchResults();
-    }
-
-    final hasActiveFilter =
+    final hasActiveFilters =
         _selectedReadingStatusFilter != ReadingStatusFilter.all ||
         _selectedBookContentFilter != BookContentFilter.all;
 
-    if (visibleBooks.isEmpty && hasActiveFilter) {
-      return _buildNoFilteredBooks();
+    // Hyllyssä ei ole lainkaan kirjoja.
+    if (selectedShelfBooks.isEmpty) {
+      return ShelfEmptyState(
+        icon: Icons.shelves,
+        title: 'Hylly on vielä tyhjä',
+        message:
+            'Skannaa ensimmäinen kirja ja aloita oman kirjahyllysi rakentaminen.',
+        actionLabel: 'Skannaa ensimmäinen kirja',
+        actionIcon: Icons.qr_code_scanner,
+        onAction: _openBarcodeScanner,
+      );
     }
 
-    return Bookshelf(
-      books: visibleBooks,
-      onReorder: _canReorderBooks ? _reorderVisibleBooks : _disabledReorder,
-      onMoveToEnd: _canReorderBooks ? _moveBookToEnd : _disabledMoveToEnd,
-      onBookTap: _openBookActions,
-    );
-  }
-
-  Widget _buildSortButton() {
-    return PopupMenuButton<BookSortOption>(
-      tooltip: 'Lajittele kirjat',
-      initialValue: _selectedSortOption,
-      onSelected: (sortOption) {
-        setState(() {
-          _selectedSortOption = sortOption;
-        });
-      },
-      itemBuilder: (context) {
-        return const [
-          PopupMenuItem(
-            value: BookSortOption.custom,
-            child: Text('Oma järjestys'),
-          ),
-          PopupMenuItem(
-            value: BookSortOption.titleAscending,
-            child: Text('Nimi A–Ö'),
-          ),
-          PopupMenuItem(
-            value: BookSortOption.titleDescending,
-            child: Text('Nimi Ö–A'),
-          ),
-          PopupMenuItem(
-            value: BookSortOption.authorAscending,
-            child: Text('Tekijä A–Ö'),
-          ),
-          PopupMenuItem(
-            value: BookSortOption.authorDescending,
-            child: Text('Tekijä Ö–A'),
-          ),
-          PopupMenuItem(
-            value: BookSortOption.ratingDescending,
-            child: Text('Arvosana 5–1'),
-          ),
-          PopupMenuItem(
-            value: BookSortOption.ratingAscending,
-            child: Text('Arvosana 1–5'),
-          ),
-        ];
-      },
-      icon: const Icon(Icons.sort),
-    );
-  }
-
-  Widget _buildReadingStatusFilterButton() {
-    final isFilterActive =
-        _selectedReadingStatusFilter != ReadingStatusFilter.all;
-
-    return PopupMenuButton<ReadingStatusFilter>(
-      tooltip: 'Suodata lukutilan mukaan',
-      initialValue: _selectedReadingStatusFilter,
-      onSelected: (filter) {
-        setState(() {
-          _selectedReadingStatusFilter = filter;
-        });
-      },
-      itemBuilder: (context) {
-        return ReadingStatusFilter.values.map((filter) {
-          return CheckedPopupMenuItem<ReadingStatusFilter>(
-            value: filter,
-            checked: filter == _selectedReadingStatusFilter,
-            child: Text(filter.label),
-          );
-        }).toList();
-      },
-      icon: Icon(isFilterActive ? Icons.filter_alt : Icons.filter_alt_outlined),
-    );
-  }
-
-  Widget _buildNoFilteredBooks() {
-    final activeFilters = <String>[];
-
-    if (_selectedReadingStatusFilter != ReadingStatusFilter.all) {
-      activeFilters.add('Lukutila: ${_selectedReadingStatusFilter.label}');
+    // Sekä haku että suodattimet rajaavat kaikki kirjat pois.
+    if (visibleBooks.isEmpty && hasSearchQuery && hasActiveFilters) {
+      return ShelfEmptyState(
+        icon: Icons.manage_search,
+        title: 'Kirjoja ei löytynyt',
+        message:
+            'Nykyinen hakusana ja suodattimet eivät vastaa yhtäkään tämän hyllyn kirjaa.',
+        actionLabel: 'Tyhjennä haku ja suodattimet',
+        actionIcon: Icons.filter_alt_off_outlined,
+        onAction: _clearSearchAndFilters,
+      );
     }
 
-    if (_selectedBookContentFilter != BookContentFilter.all) {
-      activeFilters.add('Rajaus: ${_selectedBookContentFilter.label}');
+    // Pelkkä haku ei tuottanut tuloksia.
+    if (visibleBooks.isEmpty && hasSearchQuery) {
+      return ShelfEmptyState(
+        icon: Icons.search_off,
+        title: 'Haulla ei löytynyt kirjoja',
+        message:
+            'Kokeile toista hakusanaa tai näytä jälleen kaikki hyllyn kirjat.',
+        actionLabel: 'Tyhjennä haku',
+        actionIcon: Icons.close,
+        onAction: _closeSearch,
+      );
     }
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Ei kirjoja tällä suodatuksella',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            if (activeFilters.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(activeFilters.join('\n'), textAlign: TextAlign.center),
-            ],
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _selectedReadingStatusFilter = ReadingStatusFilter.all;
+    // Pelkät suodattimet rajaavat kaikki kirjat pois.
+    if (visibleBooks.isEmpty && hasActiveFilters) {
+      return ShelfEmptyState(
+        icon: Icons.filter_alt_off_outlined,
+        title: 'Suodattimilla ei löytynyt kirjoja',
+        message:
+            'Poista aktiiviset suodattimet nähdäksesi kaikki tämän hyllyn kirjat.',
+        actionLabel: 'Poista suodattimet',
+        actionIcon: Icons.filter_alt_off,
+        onAction: _clearBookFilters,
+      );
+    }
 
-                  _selectedBookContentFilter = BookContentFilter.all;
-                });
-              },
-              child: const Text('Poista suodatukset'),
-            ),
-          ],
-        ),
-      ),
-    );
+    return _buildLibraryView();
   }
 
   Future<void> _exportBackup(BuildContext shareButtonContext) async {
@@ -1395,7 +1320,7 @@ class _HomeScreenState extends State<HomeScreen> {
         : null;
 
     try {
-      final outcome = await _backupExportService.exportBackup(
+      final outcome = await _backupExportService.exportPortableBackup(
         books: books,
         shelves: shelves,
         sharePositionOrigin: sharePositionOrigin,
@@ -1439,38 +1364,67 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<bool> _confirmBackupRestore(BackupImportSelection selection) async {
     final backup = selection.backup;
 
+    final backupTypeLabel = selection.isPortable
+        ? 'Siirrettävä ZIP-varmuuskopio'
+        : 'Vanha JSON-varmuuskopio';
+
     final shouldRestore = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Palauta varmuuskopio?'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                selection.fileName,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              Text('Luotu: ${_formatBackupDate(backup.createdAt)}'),
-              const SizedBox(height: 6),
-              Text('Kirjoja: ${backup.books.length}'),
-              Text('Kirjahyllyjä: ${backup.shelves.length}'),
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 8),
-              Text(
-                'Nykyiset kirjat ja kirjahyllyt korvataan '
-                'varmuuskopion tiedoilla.',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                  fontWeight: FontWeight.w600,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  selection.fileName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                Text('Muoto: $backupTypeLabel'),
+                const SizedBox(height: 6),
+                Text('Luotu: ${_formatBackupDate(backup.createdAt)}'),
+                const SizedBox(height: 6),
+                Text('Kirjoja: ${backup.books.length}'),
+                Text('Kirjahyllyjä: ${backup.shelves.length}'),
+
+                if (selection.isPortable)
+                  Text(
+                    'Paikallisia kansikuvia: '
+                    '${selection.coverFiles.length}',
+                  ),
+
+                if (!selection.isPortable) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'JSON-varmuuskopio ei sisällä varsinaisia '
+                    'kansikuvatiedostoja.',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+                Text(
+                  selection.isPortable
+                      ? 'Nykyiset kirjat, kirjahyllyt ja paikalliset '
+                            'kansikuvat korvataan varmuuskopion tiedoilla.'
+                      : 'Nykyiset kirjat ja kirjahyllyt korvataan '
+                            'varmuuskopion tiedoilla.',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -1493,7 +1447,67 @@ class _HomeScreenState extends State<HomeScreen> {
     return shouldRestore ?? false;
   }
 
+  Future<void> _rollbackFailedBackupRestore({
+    required List<Book> previousBooks,
+    required List<Shelf> previousShelves,
+    PortableCoverRestoreTransaction? coverTransaction,
+  }) async {
+    // Palautetaan ensin aiemmat kansikuvat, koska käyttöliittymässä
+    // ovat vielä näkyvissä vanhan kirjaston kirjat.
+    if (coverTransaction != null && coverTransaction.isActive) {
+      try {
+        await coverTransaction.rollback();
+      } catch (error) {
+        debugPrint('Kansikuvien palautuksen peruminen epäonnistui: $error');
+      }
+    }
+
+    // Palautetaan aiemmat kirjat ja hyllyt mahdollisen
+    // osittaisen tallennuksen jälkeen.
+    try {
+      await Future.wait([
+        _storageService.saveBooks(previousBooks),
+        _shelfStorageService.saveShelves(previousShelves),
+      ]);
+    } catch (error) {
+      debugPrint('Aiempien kirjastotietojen palauttaminen epäonnistui: $error');
+    }
+  }
+
+  Set<String> _customCoverFileNames(Iterable<Book> sourceBooks) {
+    final fileNames = <String>{};
+
+    for (final book in sourceBooks) {
+      final fileName = book.customCoverFileName?.trim();
+
+      if (fileName != null && fileName.isNotEmpty) {
+        fileNames.add(fileName);
+      }
+    }
+
+    return fileNames;
+  }
+
+  Future<void> _deleteCoversNoLongerReferenced({
+    required List<Book> previousBooks,
+    required List<Book> restoredBooks,
+  }) async {
+    final previousCoverFileNames = _customCoverFileNames(previousBooks);
+
+    final restoredCoverFileNames = _customCoverFileNames(restoredBooks);
+
+    final unusedFileNames =
+        previousCoverFileNames.difference(restoredCoverFileNames).toList()
+          ..sort();
+
+    for (final fileName in unusedFileNames) {
+      await _deleteCustomCoverQuietly(fileName);
+    }
+  }
+
   Future<void> _restoreBackup() async {
+    var restoreStarted = false;
+
     try {
       final selection = await _backupImportService.pickBackup();
 
@@ -1511,28 +1525,46 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final restoredShelves = List<Shelf>.from(selection.backup.shelves);
 
-      // Säilytetään nykyiset tiedot mahdollista palautusta varten,
-      // jos uuden varmuuskopion tallennus epäonnistuu.
       final previousBooks = List<Book>.from(books);
       final previousShelves = List<Shelf>.from(shelves);
 
+      setState(() {
+        _isLoading = true;
+      });
+
+      restoreStarted = true;
+
+      PortableCoverRestoreTransaction? coverTransaction;
+
       try {
+        // ZIP-varmuuskopion kansikuvat otetaan käyttöön
+        // odottavana transaktiona.
+        if (selection.isPortable) {
+          coverTransaction = await _portableCoverRestoreService.beginRestore(
+            coverFiles: selection.coverFiles,
+          );
+        }
+
+        // Tallennus voi onnistua vain osittain, joten virheessä
+        // molemmat listat palautetaan aiempiin arvoihinsa.
         await Future.wait([
           _storageService.saveBooks(restoredBooks),
           _shelfStorageService.saveShelves(restoredShelves),
         ]);
-      } catch (_) {
-        // Yritetään palauttaa aiemmat tiedot.
-        try {
-          await Future.wait([
-            _storageService.saveBooks(previousBooks),
-            _shelfStorageService.saveShelves(previousShelves),
-          ]);
-        } catch (_) {
-          // Alkuperäinen tallennusvirhe käsitellään alempana.
-        }
 
-        rethrow;
+        // Kansikuvien palautus vahvistetaan vasta, kun kirjat
+        // ja hyllyt on tallennettu onnistuneesti.
+        if (coverTransaction != null) {
+          await coverTransaction.commit();
+        }
+      } catch (error, stackTrace) {
+        await _rollbackFailedBackupRestore(
+          previousBooks: previousBooks,
+          previousShelves: previousShelves,
+          coverTransaction: coverTransaction,
+        );
+
+        Error.throwWithStackTrace(error, stackTrace);
       }
 
       if (!mounted) {
@@ -1559,26 +1591,53 @@ class _HomeScreenState extends State<HomeScreen> {
           ..addAll(restoredShelves);
 
         selectedShelfId = nextSelectedShelfId;
+
         searchQuery = '';
+        _isSearchOpen = false;
 
         _selectedSortOption = BookSortOption.custom;
 
         _selectedReadingStatusFilter = ReadingStatusFilter.all;
+
         _selectedBookContentFilter = BookContentFilter.all;
+
+        _isLoading = false;
       });
+
+      // Poistetaan vanhan kirjaston sellaiset kansikuvat,
+      // joihin palautettu kirjasto ei enää viittaa.
+      await _deleteCoversNoLongerReferenced(
+        previousBooks: previousBooks,
+        restoredBooks: restoredBooks,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      final coverMessage = selection.isPortable
+          ? ' ja ${selection.coverFiles.length} kansikuvaa'
+          : '';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             'Varmuuskopio palautettiin: '
-            '${restoredBooks.length} kirjaa ja '
-            '${restoredShelves.length} kirjahyllyä.',
+            '${restoredBooks.length} kirjaa, '
+            '${restoredShelves.length} kirjahyllyä'
+            '$coverMessage.',
           ),
         ),
       );
     } on FormatException catch (error) {
       if (!mounted) {
         return;
+      }
+
+      if (restoreStarted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1594,6 +1653,12 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
+      if (restoreStarted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Varmuuskopion palauttaminen epäonnistui: $error'),
@@ -1602,27 +1667,655 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget _buildBookContentFilterButton() {
-    final isFilterActive = _selectedBookContentFilter != BookContentFilter.all;
+  Widget _buildHeader() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
-    return PopupMenuButton<BookContentFilter>(
-      tooltip: 'Suodata arvion tai muistiinpanon mukaan',
-      initialValue: _selectedBookContentFilter,
-      onSelected: (filter) {
+    return Row(
+      children: [
+        Icon(Icons.menu_book_rounded, size: 32, color: colorScheme.primary),
+        const SizedBox(width: 8),
+        Text(
+          'My Shelf',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(width: 12),
+
+        // Kirjastoyhteenveto logon ja valikon välissä.
+        Expanded(
+          child: Align(
+            alignment: Alignment.center,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: colorScheme.outlineVariant),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x12000000),
+                    blurRadius: 8,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.auto_stories_outlined,
+                      size: 19,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: 7),
+                    Text(
+                      '${books.length} kirjaa · '
+                      '${shelves.length} hyllyä',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(width: 6),
+
+        Builder(
+          builder: (menuContext) {
+            return PopupMenuButton<String>(
+              tooltip: 'Sovelluksen valikko',
+              icon: const Icon(Icons.more_vert),
+              enabled: !_isLoading,
+              onSelected: (value) {
+                switch (value) {
+                  case 'view-covers':
+                    _setBookViewMode(BookViewMode.covers);
+                    break;
+
+                  case 'view-spines':
+                    _setBookViewMode(BookViewMode.spines);
+                    break;
+
+                  case 'toggle-reading-status':
+                    _toggleReadingStatusBadges();
+                    break;
+
+                  case 'export':
+                    _exportBackup(menuContext);
+                    break;
+
+                  case 'restore':
+                    _restoreBackup();
+                    break;
+                }
+              },
+              itemBuilder: (context) {
+                return [
+                  const PopupMenuItem<String>(
+                    enabled: false,
+                    child: Text(
+                      'Kirjojen esitystapa',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  CheckedPopupMenuItem<String>(
+                    value: 'view-covers',
+                    checked: _bookViewMode == BookViewMode.covers,
+                    child: const Text('Kansikuvat'),
+                  ),
+                  CheckedPopupMenuItem<String>(
+                    value: 'view-spines',
+                    checked: _bookViewMode == BookViewMode.spines,
+                    child: const Text('Selkämykset'),
+                  ),
+                  const PopupMenuDivider(),
+                  CheckedPopupMenuItem<String>(
+                    value: 'toggle-reading-status',
+                    checked: _showReadingStatusBadges,
+                    child: const Text('Näytä lukutilatunnisteet'),
+                  ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem<String>(
+                    value: 'export',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.cloud_upload_outlined),
+                      title: Text('Luo varmuuskopio'),
+                    ),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'restore',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.restore),
+                      title: Text('Palauta varmuuskopio'),
+                    ),
+                  ),
+                ];
+              },
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  String _sortOptionLabel(BookSortOption option) {
+    switch (option) {
+      case BookSortOption.custom:
+        return 'Oma järjestys';
+
+      case BookSortOption.titleAscending:
+        return 'Nimi A–Ö';
+
+      case BookSortOption.titleDescending:
+        return 'Nimi Ö–A';
+
+      case BookSortOption.authorAscending:
+        return 'Tekijä A–Ö';
+
+      case BookSortOption.authorDescending:
+        return 'Tekijä Ö–A';
+
+      case BookSortOption.ratingDescending:
+        return 'Arvosana 5–1';
+
+      case BookSortOption.ratingAscending:
+        return 'Arvosana 1–5';
+    }
+  }
+
+  Widget _buildToolbarMenuChild({
+    required IconData icon,
+    required String label,
+    bool active = false,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: active ? colorScheme.secondaryContainer : colorScheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: active ? colorScheme.primary : colorScheme.outlineVariant,
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 21),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          const SizedBox(width: 4),
+          const Icon(Icons.arrow_drop_down),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSortMenuButton() {
+    return PopupMenuButton<BookSortOption>(
+      tooltip: 'Lajittele kirjat',
+      initialValue: _selectedSortOption,
+      onSelected: (option) {
         setState(() {
-          _selectedBookContentFilter = filter;
+          _selectedSortOption = option;
         });
       },
       itemBuilder: (context) {
-        return BookContentFilter.values.map((filter) {
-          return CheckedPopupMenuItem<BookContentFilter>(
-            value: filter,
-            checked: filter == _selectedBookContentFilter,
-            child: Text(filter.label),
+        return BookSortOption.values.map((option) {
+          return CheckedPopupMenuItem<BookSortOption>(
+            value: option,
+            checked: option == _selectedSortOption,
+            child: Text(_sortOptionLabel(option)),
           );
         }).toList();
       },
-      icon: Icon(isFilterActive ? Icons.bookmark : Icons.bookmark_border),
+      child: _buildToolbarMenuChild(
+        icon: Icons.sort,
+        label: 'Järjestys',
+        active: _selectedSortOption != BookSortOption.custom,
+      ),
+    );
+  }
+
+  Widget _buildCombinedFilterButton() {
+    final readingFilterActive =
+        _selectedReadingStatusFilter != ReadingStatusFilter.all;
+
+    final contentFilterActive =
+        _selectedBookContentFilter != BookContentFilter.all;
+
+    final activeFilterCount =
+        (readingFilterActive ? 1 : 0) + (contentFilterActive ? 1 : 0);
+
+    return PopupMenuButton<String>(
+      tooltip: 'Suodata kirjat',
+      onSelected: (value) {
+        final parts = value.split(':');
+
+        if (parts.length != 2) {
+          return;
+        }
+
+        final filterType = parts[0];
+        final filterName = parts[1];
+
+        setState(() {
+          if (filterType == 'reading') {
+            _selectedReadingStatusFilter = ReadingStatusFilter.values
+                .firstWhere((filter) => filter.name == filterName);
+          }
+
+          if (filterType == 'content') {
+            _selectedBookContentFilter = BookContentFilter.values.firstWhere(
+              (filter) => filter.name == filterName,
+            );
+          }
+        });
+      },
+      itemBuilder: (context) {
+        return [
+          const PopupMenuItem<String>(
+            enabled: false,
+            child: Text(
+              'Lukutila',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          ...ReadingStatusFilter.values.map((filter) {
+            return CheckedPopupMenuItem<String>(
+              value: 'reading:${filter.name}',
+              checked: filter == _selectedReadingStatusFilter,
+              child: Text(filter.label),
+            );
+          }),
+          const PopupMenuDivider(),
+          const PopupMenuItem<String>(
+            enabled: false,
+            child: Text(
+              'Kirjan tiedot',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          ...BookContentFilter.values.map((filter) {
+            return CheckedPopupMenuItem<String>(
+              value: 'content:${filter.name}',
+              checked: filter == _selectedBookContentFilter,
+              child: Text(filter.label),
+            );
+          }),
+        ];
+      },
+      child: _buildToolbarMenuChild(
+        icon: activeFilterCount > 0
+            ? Icons.filter_alt
+            : Icons.filter_alt_outlined,
+        label: activeFilterCount == 0
+            ? 'Suodattimet'
+            : 'Suodattimet ($activeFilterCount)',
+        active: activeFilterCount > 0,
+      ),
+    );
+  }
+
+  Widget _buildToolbar() {
+    if (_isSearchOpen) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          children: [
+            Expanded(child: _buildSearchField(autofocus: true)),
+            const SizedBox(width: 6),
+            IconButton(
+              tooltip: 'Sulje haku',
+              onPressed: _closeSearch,
+              icon: const Icon(Icons.close),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Expanded(child: _buildSortMenuButton()),
+          const SizedBox(width: 8),
+          Expanded(child: _buildCombinedFilterButton()),
+          const SizedBox(width: 8),
+          IconButton.filledTonal(
+            tooltip: 'Hae kirjoista',
+            onPressed: () {
+              setState(() {
+                _isSearchOpen = true;
+              });
+            },
+            icon: const Icon(Icons.search),
+          ),
+          const SizedBox(width: 4),
+          IconButton.filledTonal(
+            tooltip: 'Avaa kirjahylly koko näytölle',
+            onPressed: _openShelfFullscreen,
+            icon: const Icon(Icons.fullscreen),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLibraryView() {
+    switch (_bookViewMode) {
+      case BookViewMode.covers:
+        return BookCoverShelf(
+          books: visibleBooks,
+          canReorder: _canReorderBooks,
+          showReadingStatusBadges: _showReadingStatusBadges,
+          isFullscreen: _isShelfFullscreen,
+          onReorder: _reorderVisibleBooks,
+          onMoveToEnd: _moveBookToEnd,
+          onBookTap: _openBookActions,
+        );
+
+      case BookViewMode.spines:
+        return Bookshelf(
+          books: visibleBooks,
+          showReadingStatusBadges: _showReadingStatusBadges,
+          onReorder: _canReorderBooks ? _reorderVisibleBooks : _disabledReorder,
+          onMoveToEnd: _canReorderBooks ? _moveBookToEnd : _disabledMoveToEnd,
+          onBookTap: _openBookActions,
+        );
+    }
+  }
+
+  Future<void> _deleteCustomCoverQuietly(String? fileName) async {
+    if (fileName == null || fileName.trim().isEmpty) {
+      return;
+    }
+
+    try {
+      await _customCoverService.deleteCover(fileName);
+    } catch (error) {
+      debugPrint('Kansikuvatiedoston poistaminen epäonnistui: $error');
+    }
+  }
+
+  Widget _buildFullscreenShelf() {
+    final selectedShelf = shelves.firstWhere(
+      (shelf) => shelf.id == selectedShelfId,
+      orElse: () => defaultShelf,
+    );
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          _closeShelfFullscreen();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+            child: Column(
+              children: [
+                _buildFullscreenHeader(shelfName: selectedShelf.name),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _buildShelfContent(),
+                ),
+              ],
+            ),
+          ),
+        ),
+        floatingActionButton: FloatingActionButton(
+          tooltip: 'Skannaa kirja',
+          onPressed: _openBarcodeScanner,
+          child: const Icon(Icons.qr_code_scanner),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFullscreenHeader({required String shelfName}) {
+    final theme = Theme.of(context);
+
+    return SizedBox(
+      height: 64,
+      child: Row(
+        children: [
+          _FullscreenButton(
+            tooltip: 'Poistu koko näytön tilasta',
+            icon: Icons.arrow_back,
+            onPressed: _closeShelfFullscreen,
+          ),
+          const SizedBox(width: 10),
+
+          Expanded(
+            child: Center(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 280),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 22,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE2C092),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF7A482A), width: 2),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x30000000),
+                      blurRadius: 5,
+                      offset: Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  shelfName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: const Color(0xFF4A2919),
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 10),
+
+          PopupMenuButton<String>(
+            tooltip: 'Kirjahyllyn asetukset',
+            onSelected: (value) {
+              switch (value) {
+                case 'covers':
+                  _setBookViewMode(BookViewMode.covers);
+                  break;
+
+                case 'spines':
+                  _setBookViewMode(BookViewMode.spines);
+                  break;
+
+                case 'reading-status':
+                  _toggleReadingStatusBadges();
+                  break;
+              }
+            },
+            itemBuilder: (context) {
+              return [
+                CheckedPopupMenuItem<String>(
+                  value: 'covers',
+                  checked: _bookViewMode == BookViewMode.covers,
+                  child: const Text('Kansikuvat'),
+                ),
+                CheckedPopupMenuItem<String>(
+                  value: 'spines',
+                  checked: _bookViewMode == BookViewMode.spines,
+                  child: const Text('Selkämykset'),
+                ),
+                const PopupMenuDivider(),
+                CheckedPopupMenuItem<String>(
+                  value: 'reading-status',
+                  checked: _showReadingStatusBadges,
+                  child: const Text('Näytä lukutilatunnisteet'),
+                ),
+              ];
+            },
+            child: const _FullscreenButtonVisual(icon: Icons.more_vert),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _clearSearchAndFilters() {
+    _searchController.clear();
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      searchQuery = '';
+      _isSearchOpen = false;
+
+      _selectedReadingStatusFilter = ReadingStatusFilter.all;
+
+      _selectedBookContentFilter = BookContentFilter.all;
+    });
+  }
+
+  void _clearBookFilters() {
+    setState(() {
+      _selectedReadingStatusFilter = ReadingStatusFilter.all;
+
+      _selectedBookContentFilter = BookContentFilter.all;
+    });
+  }
+
+  Future<void> _loadLibraryViewSettings() async {
+    try {
+      final settings = await _libraryViewSettingsService.loadSettings();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _bookViewMode = settings.bookViewMode;
+
+        _showReadingStatusBadges = settings.showReadingStatusBadges;
+      });
+    } catch (error) {
+      debugPrint(
+        'Kirjaston näkymäasetusten lataaminen '
+        'epäonnistui: $error',
+      );
+    }
+  }
+
+  void _setBookViewMode(BookViewMode bookViewMode) {
+    if (_bookViewMode == bookViewMode) {
+      return;
+    }
+
+    setState(() {
+      _bookViewMode = bookViewMode;
+    });
+
+    unawaited(_saveBookViewMode(bookViewMode));
+  }
+
+  Future<void> _saveBookViewMode(BookViewMode bookViewMode) async {
+    try {
+      await _libraryViewSettingsService.saveBookViewMode(bookViewMode);
+    } catch (error) {
+      debugPrint(
+        'Kirjojen esitystavan tallentaminen '
+        'epäonnistui: $error',
+      );
+    }
+  }
+
+  void _toggleReadingStatusBadges() {
+    final newValue = !_showReadingStatusBadges;
+
+    setState(() {
+      _showReadingStatusBadges = newValue;
+    });
+
+    unawaited(_saveReadingStatusBadges(newValue));
+  }
+
+  Future<void> _saveReadingStatusBadges(bool showReadingStatusBadges) async {
+    try {
+      await _libraryViewSettingsService.saveShowReadingStatusBadges(
+        showReadingStatusBadges,
+      );
+    } catch (error) {
+      debugPrint(
+        'Lukutilatunnisteasetuksen tallentaminen '
+        'epäonnistui: $error',
+      );
+    }
+  }
+}
+
+class _FullscreenButton extends StatelessWidget {
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  const _FullscreenButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
+        elevation: 4,
+        shape: const CircleBorder(),
+        child: IconButton(onPressed: onPressed, icon: Icon(icon)),
+      ),
+    );
+  }
+}
+
+class _FullscreenButtonVisual extends StatelessWidget {
+  final IconData icon;
+
+  const _FullscreenButtonVisual({required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
+      elevation: 4,
+      shape: const CircleBorder(),
+      child: Padding(padding: const EdgeInsets.all(12), child: Icon(icon)),
     );
   }
 }

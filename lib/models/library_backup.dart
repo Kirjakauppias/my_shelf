@@ -3,9 +3,15 @@ import 'dart:convert';
 import 'book.dart';
 import 'shelf.dart';
 
-/// Sisältää My Shelf -sovelluksen JSON-varmuuskopion tiedot.
+/// Sisältää My Shelf -kirjaston JSON-muotoiset varmuuskopiotiedot.
+///
+/// Samaa JSON-rakennetta voidaan käyttää sekä itsenäisessä JSON-varmuuskopiossa
+/// että kansikuvat sisältävän siirrettävän ZIP-varmuuskopion library.json-
+/// tiedostossa.
 class LibraryBackup {
-  /// Tällä hetkellä tuettu varmuuskopion rakennemuoto.
+  /// Tällä hetkellä tuettu kirjaston JSON-rakenteen versio.
+  ///
+  /// Tämä versionumero on erillinen siirrettävän ZIP-arkiston versiosta.
   static const int currentFormatVersion = 1;
 
   /// Varmuuskopion rakenteen versionumero.

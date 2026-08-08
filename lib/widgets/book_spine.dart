@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../models/book.dart';
+import 'reading_status_badge.dart';
 
 class BookSpine extends StatelessWidget {
   final Book book;
   final VoidCallback onTap;
+  final bool showReadingStatusBadge;
 
-  const BookSpine({super.key, required this.book, required this.onTap});
+  const BookSpine({
+    super.key,
+    required this.book,
+    required this.onTap,
+    this.showReadingStatusBadge = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -108,17 +115,18 @@ class BookSpine extends StatelessWidget {
           ),
         ),
 
-        Positioned(
-          top: 3,
-          right: 3,
-          child: _ReadingStatusBadge(status: book.readingStatus),
-        ),
+        if (showReadingStatusBadge)
+          Positioned(
+            top: 3,
+            right: 3,
+            child: ReadingStatusBadge(status: book.readingStatus),
+          ),
       ],
     );
   }
 }
 
-class _ReadingStatusBadge extends StatelessWidget {
+/*class _ReadingStatusBadge extends StatelessWidget {
   final ReadingStatus status;
 
   const _ReadingStatusBadge({required this.status});
@@ -166,4 +174,4 @@ class _ReadingStatusBadge extends StatelessWidget {
       ),
     );
   }
-}
+}*/

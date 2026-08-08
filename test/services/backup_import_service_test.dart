@@ -1,9 +1,12 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_shelf/models/book.dart';
 import 'package:my_shelf/models/library_backup.dart';
 import 'package:my_shelf/models/shelf.dart';
 import 'package:my_shelf/services/backup_import_service.dart';
+import 'package:my_shelf/services/portable_backup_archive_service.dart';
 
 void main() {
   const importService = BackupImportService();
@@ -232,6 +235,109 @@ void main() {
       expect(backup.books[0].readingStatus, ReadingStatus.unread);
       expect(backup.books[1].readingStatus, ReadingStatus.reading);
       expect(backup.books[2].readingStatus, ReadingStatus.read);
+    });
+  });
+
+  group('BackupImportService.decodeBackupFile', () {
+    test('tunnistaa ja lukee JSON-varmuuskopion', () {
+      final source = _createBackupJson();
+
+      final selection = importService.decodeBackupFile(
+        fileName: 'my_shelf_backup.json',
+        bytes: Uint8List.fromList(utf8.encode(source)),
+      );
+
+      expect(selection.type, BackupImportType.json);
+      expect(selection.isPortable, isFalse);
+      expect(selection.fileName, 'my_shelf_backup.json');
+
+      expect(selection.backup.books, hasLength(1));
+      expect(selection.backup.shelves, hasLength(1));
+
+      expect(selection.coverFiles, isEmpty);
+      expect(selection.containsCoverFiles, isFalse);
+    });
+
+    test('tunnistaa ja lukee ZIP-varmuuskopion kansikuvineen', () {
+      const coverFileName = 'book-1-cover.jpg';
+
+      final backup = LibraryBackup(
+        formatVersion: LibraryBackup.currentFormatVersion,
+        createdAt: DateTime.utc(2026, 8, 2, 10, 30),
+        shelves: const [
+          Shelf(id: 'default-shelf', name: 'Oletushylly', position: 0),
+        ],
+        books: const [
+          Book(
+            id: 'book-1',
+            shelfId: 'default-shelf',
+            title: 'Testikirja',
+            author: 'Testikirjailija',
+            pageCount: 320,
+            customCoverFileName: coverFileName,
+            spineColor: Color(0xFF795548),
+          ),
+        ],
+      );
+
+      final expectedCoverBytes = Uint8List.fromList(<int>[1, 2, 3, 4, 5]);
+
+      final zipBytes = const PortableBackupArchiveService().encode(
+        backup: backup,
+        coverFiles: {coverFileName: expectedCoverBytes},
+      );
+
+      final selection = importService.decodeBackupFile(
+        // Tarkistaa samalla, ettei kirjainkoolla ole merkitystä.
+        fileName: 'MY_SHELF_BACKUP.ZIP',
+        bytes: zipBytes,
+      );
+
+      expect(selection.type, BackupImportType.portableZip);
+      expect(selection.isPortable, isTrue);
+
+      expect(selection.backup.books, hasLength(1));
+      expect(selection.backup.shelves, hasLength(1));
+
+      expect(selection.containsCoverFiles, isTrue);
+      expect(selection.coverFiles, contains(coverFileName));
+
+      expect(
+        selection.coverFiles[coverFileName],
+        orderedEquals(expectedCoverBytes),
+      );
+    });
+
+    test('hylkää tiedoston, jonka tiedostomuotoa ei tueta', () {
+      expect(
+        () => importService.decodeBackupFile(
+          fileName: 'varmuuskopio.txt',
+          bytes: Uint8List.fromList(<int>[1, 2, 3]),
+        ),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            allOf(contains('.txt'), contains('ei tueta')),
+          ),
+        ),
+      );
+    });
+
+    test('hylkää JSON-tiedoston, joka ei ole kelvollista UTF-8-tekstiä', () {
+      expect(
+        () => importService.decodeBackupFile(
+          fileName: 'varmuuskopio.json',
+          bytes: Uint8List.fromList(<int>[0xC3, 0x28]),
+        ),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            contains('UTF-8'),
+          ),
+        ),
+      );
     });
   });
 }

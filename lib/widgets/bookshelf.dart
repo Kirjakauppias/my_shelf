@@ -13,12 +13,15 @@ class Bookshelf extends StatelessWidget {
   final void Function({required Book draggedBook, required Book targetBook})
   onReorder;
 
+  final bool showReadingStatusBadges;
+
   const Bookshelf({
     super.key,
     required this.books,
     required this.onReorder,
     required this.onMoveToEnd,
     required this.onBookTap,
+    this.showReadingStatusBadges = false,
   });
 
   static const double bookSpacing = 3;
@@ -60,6 +63,7 @@ class Bookshelf extends StatelessWidget {
                         onReorder: onReorder,
                         onMoveToEnd: onMoveToEnd,
                         onBookTap: onBookTap,
+                        showReadingStatusBadges: showReadingStatusBadges,
                         showEndDropTarget: index == shelfRows.length - 1,
                       ),
                     ),

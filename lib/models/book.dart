@@ -7,8 +7,10 @@ extension ReadingStatusExtension on ReadingStatus {
     switch (this) {
       case ReadingStatus.unread:
         return 'Lukematta';
+
       case ReadingStatus.reading:
         return 'Kesken';
+
       case ReadingStatus.read:
         return 'Luettu';
     }
@@ -22,7 +24,16 @@ class Book {
   final String title;
   final String author;
   final int pageCount;
+
+  /// ISBN-haun tai muun verkkopalvelun palauttama kansikuva.
   final String? coverUrl;
+
+  /// Käyttäjän itse valitseman paikallisen kansikuvan tiedostonimi.
+  ///
+  /// Malliin tallennetaan vain tiedostonimi, ei absoluuttista
+  /// tiedostopolkua. Esimerkiksi: `book-12345.jpg`.
+  final String? customCoverFileName;
+
   final Color spineColor;
   final ReadingStatus readingStatus;
   final int? rating;
@@ -36,6 +47,7 @@ class Book {
     required this.author,
     required this.pageCount,
     this.coverUrl,
+    this.customCoverFileName,
     required this.spineColor,
     this.readingStatus = ReadingStatus.unread,
     this.rating,
@@ -65,6 +77,8 @@ class Book {
     String? author,
     int? pageCount,
     String? coverUrl,
+    String? customCoverFileName,
+    bool clearCustomCover = false,
     Color? spineColor,
     ReadingStatus? readingStatus,
     int? rating,
@@ -79,6 +93,9 @@ class Book {
       author: author ?? this.author,
       pageCount: pageCount ?? this.pageCount,
       coverUrl: coverUrl ?? this.coverUrl,
+      customCoverFileName: clearCustomCover
+          ? null
+          : customCoverFileName ?? this.customCoverFileName,
       spineColor: spineColor ?? this.spineColor,
       readingStatus: readingStatus ?? this.readingStatus,
       rating: clearRating ? null : rating ?? this.rating,
@@ -95,6 +112,7 @@ class Book {
       'author': author,
       'pageCount': pageCount,
       'coverUrl': coverUrl,
+      'customCoverFileName': customCoverFileName,
       'spineColor': spineColor.toARGB32(),
       'readingStatus': readingStatus.name,
       'rating': rating,
@@ -117,6 +135,19 @@ class Book {
       throw const FormatException('Kirjan arvosanan täytyy olla välillä 1–5.');
     }
 
+    final customCoverValue = json['customCoverFileName'];
+
+    if (customCoverValue != null && customCoverValue is! String) {
+      throw const FormatException(
+        'Oman kansikuvan tiedostonimen täytyy olla merkkijono.',
+      );
+    }
+
+    final customCoverFileName =
+        customCoverValue is String && customCoverValue.trim().isNotEmpty
+        ? customCoverValue.trim()
+        : null;
+
     return Book(
       id: json['id'] as String,
       shelfId: json['shelfId'] as String? ?? 'default-shelf',
@@ -125,6 +156,7 @@ class Book {
       author: json['author'] as String,
       pageCount: json['pageCount'] as int,
       coverUrl: json['coverUrl'] as String?,
+      customCoverFileName: customCoverFileName,
       spineColor: Color(json['spineColor'] as int),
       readingStatus: readingStatus,
       rating: ratingValue as int?,
