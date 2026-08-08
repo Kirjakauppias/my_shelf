@@ -2,6 +2,19 @@
 
 ### Suunnitteilla
 
+- Julkaisuvuosi kirjan tietoihin
+- Sidosasu kirjan tietoihin
+- Kustantaja kirjan tietoihin
+- Uusien bibliografisten tietojen hakeminen Finnasta
+- Julkaisuvuoden ja kustantajan täydentäminen Google Booksista
+- Sidosasun tunnistaminen Finnan bibliografisista tiedoista
+- Uusien tietojen näyttäminen ISBN-haun esikatselussa
+- Uusien tietojen näyttäminen kirjan tietosivulla
+- Uusien tietojen muokkaaminen käsin
+- Uusien kenttien tallennus paikalliseen kirjastoon
+- Uusien kenttien sisällyttäminen varmuuskopioihin
+- Vanhojen kirjastojen ja varmuuskopioiden taaksepäin yhteensopivuus
+- Uusien kirjatietojen automaattiset testit
 - Kirjahyllyjen järjestäminen
 - Lajittelu kirjan lisäysajan perusteella
 - Lukemisen aloitus- ja lopetuspäivämäärät
