@@ -1,5 +1,18 @@
 ## [Unreleased]
 
+### Suunnitteilla
+
+- Kirjahyllyjen järjestäminen
+- Lajittelu kirjan lisäysajan perusteella
+- Lukemisen aloitus- ja lopetuspäivämäärät
+- Lukemisen tilastot
+- Kirjan lainaustiedot
+- Automaattiset varmuuskopiot
+- Pilvisynkronointi
+- Käyttäjätilit
+
+## [0.11.0-alpha] - 2026-08-08
+
 
 ### Lisätty
 
