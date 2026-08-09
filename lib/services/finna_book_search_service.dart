@@ -15,6 +15,23 @@ class FinnaBookSearchService {
 
   final FinnaHttpGet _get;
 
+  BookSearchResult _mergeMatchingResults(
+    BookSearchResult current,
+    BookSearchResult additional,
+  ) {
+    return BookSearchResult(
+      source: BookDataSource.finna,
+      isbn: current.isbn,
+      title: current.title ?? additional.title,
+      author: current.author ?? additional.author,
+      pageCount: current.pageCount ?? additional.pageCount,
+      publicationYear: current.publicationYear ?? additional.publicationYear,
+      publisher: current.publisher ?? additional.publisher,
+      binding: current.binding ?? additional.binding,
+      coverUrl: current.coverUrl ?? additional.coverUrl,
+    );
+  }
+
   int? _readPublicationYear(Map<String, dynamic> record) {
     final publicationDatesRaw = record['publicationDates'];
 
@@ -124,6 +141,8 @@ class FinnaBookSearchService {
       throw const BookApiException('Finna palautti virheellisen vastauksen.');
     }
 
+    BookSearchResult? mergedResult;
+
     for (final recordRaw in recordsRaw) {
       if (recordRaw is! Map) {
         continue;
@@ -137,8 +156,116 @@ class FinnaBookSearchService {
 
       final result = _resultFromRecord(record, isbn: normalizedIsbn);
 
-      if (result.hasAnyData) {
-        return result;
+      if (!result.hasAnyData) {
+        continue;
+      }
+
+      mergedResult = mergedResult == null
+          ? result
+          : _mergeMatchingResults(mergedResult, result);
+    }
+
+    if (mergedResult == null) {
+      return null;
+    }
+
+    if (mergedResult.binding != null) {
+      return mergedResult;
+    }
+
+    final binding = await _findBindingFromFullRecords(
+      recordsRaw,
+      requestedIsbn: normalizedIsbn,
+    );
+
+    if (binding == null) {
+      return mergedResult;
+    }
+
+    return BookSearchResult(
+      source: mergedResult.source,
+      isbn: mergedResult.isbn,
+      title: mergedResult.title,
+      author: mergedResult.author,
+      pageCount: mergedResult.pageCount,
+      publicationYear: mergedResult.publicationYear,
+      publisher: mergedResult.publisher,
+      binding: binding,
+      coverUrl: mergedResult.coverUrl,
+    );
+  }
+
+  Future<BookBinding?> _findBindingFromFullRecord(String recordId) async {
+    final uri = Uri.https('api.finna.fi', '/v1/record', {
+      'id': recordId,
+      'field[]': 'fullRecord',
+    });
+
+    try {
+      final response = await _get(uri).timeout(_requestTimeout);
+
+      if (response.statusCode != 200) {
+        return null;
+      }
+
+      final decodedResponse = _decodeResponse(response);
+
+      final recordsRaw = decodedResponse['records'];
+
+      if (recordsRaw is! List || recordsRaw.isEmpty) {
+        return null;
+      }
+
+      final recordRaw = recordsRaw.first;
+
+      if (recordRaw is! Map) {
+        return null;
+      }
+
+      final record = Map<String, dynamic>.from(recordRaw);
+
+      final fullRecord = _readNonEmptyString(record['fullRecord']);
+
+      if (fullRecord == null) {
+        return null;
+      }
+
+      return _bindingFromText(fullRecord);
+    } catch (_) {
+      // Sidosasun täydentävän haun epäonnistuminen ei saa
+      // estää muun kirjatiedon käyttämistä.
+      return null;
+    }
+  }
+
+  Future<BookBinding?> _findBindingFromFullRecords(
+    List<dynamic> recordsRaw, {
+    required String requestedIsbn,
+  }) async {
+    final checkedRecordIds = <String>{};
+
+    for (final recordRaw in recordsRaw) {
+      if (recordRaw is! Map) {
+        continue;
+      }
+
+      final record = Map<String, dynamic>.from(recordRaw);
+
+      // Tutkitaan vain tietueet, jotka vastaavat haettua ISBN:ää.
+      if (!_recordMatchesIsbn(record, requestedIsbn)) {
+        continue;
+      }
+
+      final recordId = _readNonEmptyString(record['id']);
+
+      if (recordId == null || !checkedRecordIds.add(recordId)) {
+        continue;
+      }
+
+      final binding = await _findBindingFromFullRecord(recordId);
+
+      if (binding != null) {
+        return binding;
       }
     }
 

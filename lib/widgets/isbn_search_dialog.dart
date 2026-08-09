@@ -4,6 +4,7 @@ import '../models/book.dart';
 import '../services/book_api_service.dart';
 import '../utils/isbn_utils.dart';
 import '../services/book_api_exception.dart';
+import '../models/book_binding.dart';
 
 class IsbnSearchDialog extends StatefulWidget {
   final String? initialIsbn;
@@ -216,6 +217,15 @@ class _BookPreview extends StatelessWidget {
                   const SizedBox(height: 10),
                   Text('ISBN: ${book.isbn ?? 'Ei saatavilla'}'),
                   Text('Sivuja: ${book.pageCount}'),
+
+                  if (book.publicationYear != null)
+                    Text('Julkaisuvuosi: ${book.publicationYear}'),
+
+                  if (book.publisher != null)
+                    Text('Kustantaja: ${book.publisher}'),
+
+                  if (book.binding != BookBinding.unknown)
+                    Text('Sidosasu: ${book.binding.label}'),
                 ],
               ),
             ),
