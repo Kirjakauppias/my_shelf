@@ -6,6 +6,7 @@ import 'package:my_shelf/models/book_search_result.dart';
 import 'package:my_shelf/services/book_api_exception.dart';
 import 'package:my_shelf/services/book_api_service.dart';
 import 'package:my_shelf/services/finna_book_search_service.dart';
+import 'package:my_shelf/models/book_binding.dart';
 
 void main() {
   const requestedIsbn = '9789510314357';
@@ -22,6 +23,9 @@ void main() {
             isbn: requestedIsbn,
             title: 'Finnan kirjan nimi',
             author: 'Finnan kirjailija',
+            publicationYear: 2024,
+            publisher: 'Testikustantaja',
+            binding: BookBinding.hardcover,
           );
         }),
         get: (uri) async {
@@ -59,6 +63,9 @@ void main() {
       expect(book!.title, 'Finnan kirjan nimi');
       expect(book.author, 'Finnan kirjailija');
       expect(book.pageCount, 412);
+      expect(book.publicationYear, 2024);
+      expect(book.publisher, 'Testikustantaja');
+      expect(book.binding, BookBinding.hardcover);
 
       expect(book.coverUrl, 'https://example.com/cover.jpg');
 

@@ -9,6 +9,7 @@ import '../utils/isbn_utils.dart';
 import 'book_api_exception.dart';
 import 'finna_book_search_service.dart';
 import 'finna_cover_validator.dart';
+import '../models/book_binding.dart';
 
 typedef BookApiHttpGet = Future<http.Response> Function(Uri uri);
 
@@ -115,6 +116,9 @@ class BookApiService {
       title: mergedData.title ?? 'Tuntematon kirja',
       author: mergedData.author ?? 'Tuntematon kirjailija',
       pageCount: mergedData.pageCount ?? 300,
+      publicationYear: mergedData.publicationYear,
+      publisher: mergedData.publisher,
+      binding: mergedData.binding ?? BookBinding.unknown,
       coverUrl: mergedData.coverUrl,
       spineColor: _createSpineColor(normalizedIsbn),
     );
@@ -386,6 +390,13 @@ class BookApiService {
       author: finna?.author ?? google?.author ?? openLibrary?.author,
       pageCount:
           finna?.pageCount ?? google?.pageCount ?? openLibrary?.pageCount,
+      publicationYear:
+          finna?.publicationYear ??
+          google?.publicationYear ??
+          openLibrary?.publicationYear,
+      publisher:
+          finna?.publisher ?? google?.publisher ?? openLibrary?.publisher,
+      binding: finna?.binding ?? google?.binding ?? openLibrary?.binding,
       coverUrl: coverResult?.coverUrl,
       coverSource: coverResult?.source,
     );
@@ -499,6 +510,9 @@ class _MergedBookData {
   final String? title;
   final String? author;
   final int? pageCount;
+  final int? publicationYear;
+  final String? publisher;
+  final BookBinding? binding;
   final String? coverUrl;
   final BookDataSource? coverSource;
 
@@ -506,6 +520,9 @@ class _MergedBookData {
     this.title,
     this.author,
     this.pageCount,
+    this.publicationYear,
+    this.publisher,
+    this.binding,
     this.coverUrl,
     this.coverSource,
   });
