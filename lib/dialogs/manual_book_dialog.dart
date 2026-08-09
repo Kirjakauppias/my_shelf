@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/book.dart';
+import '../models/book_binding.dart';
 
 class ManualBookDialog extends StatefulWidget {
   final String? initialIsbn;
@@ -89,8 +90,20 @@ class _ManualBookDialogState extends State<ManualBookDialog> {
       title: title,
       author: author,
       pageCount: pageCount,
-      coverUrl: null,
+
+      // Bibliografiset tiedot säilytetään muokkauksessa.
+      // Niille lisätään omat muokkauskentät myöhemmin v0.12:ssa.
+      publicationYear: widget.book?.publicationYear,
+      publisher: widget.book?.publisher,
+      binding: widget.book?.binding ?? BookBinding.unknown,
+
+      // Myös kirjan muut jo olemassa olevat tiedot täytyy säilyttää.
+      coverUrl: widget.book?.coverUrl,
+      customCoverFileName: widget.book?.customCoverFileName,
       spineColor: _selectedColor,
+      readingStatus: widget.book?.readingStatus ?? ReadingStatus.unread,
+      rating: widget.book?.rating,
+      notes: widget.book?.notes ?? '',
     );
 
     Navigator.of(context).pop(book);
