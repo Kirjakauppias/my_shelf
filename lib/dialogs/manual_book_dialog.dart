@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/book.dart';
 import '../models/book_binding.dart';
+import '../utils/isbn_utils.dart';
 
 class ManualBookDialog extends StatefulWidget {
   final String? initialIsbn;
@@ -20,6 +21,10 @@ class _ManualBookDialogState extends State<ManualBookDialog> {
   late final TextEditingController _authorController;
   late final TextEditingController _isbnController;
   late final TextEditingController _pageCountController;
+  late final TextEditingController _publicationYearController;
+  late final TextEditingController _publisherController;
+
+  BookBinding _selectedBinding = BookBinding.unknown;
 
   Color _selectedColor = const Color(0xFF335C67);
 
@@ -52,6 +57,16 @@ class _ManualBookDialogState extends State<ManualBookDialog> {
       text: existingBook?.pageCount.toString() ?? '',
     );
 
+    _publicationYearController = TextEditingController(
+      text: existingBook?.publicationYear?.toString() ?? '',
+    );
+
+    _publisherController = TextEditingController(
+      text: existingBook?.publisher ?? '',
+    );
+
+    _selectedBinding = existingBook?.binding ?? BookBinding.unknown;
+
     if (existingBook != null) {
       _selectedColor = existingBook.spineColor;
     }
@@ -63,6 +78,8 @@ class _ManualBookDialogState extends State<ManualBookDialog> {
     _authorController.dispose();
     _isbnController.dispose();
     _pageCountController.dispose();
+    _publicationYearController.dispose();
+    _publisherController.dispose();
     super.dispose();
   }
 
@@ -73,9 +90,19 @@ class _ManualBookDialogState extends State<ManualBookDialog> {
 
     final title = _titleController.text.trim();
     final author = _authorController.text.trim();
-    final isbn = _isbnController.text.trim().replaceAll(RegExp(r'[\s-]'), '');
+    final isbn = IsbnUtils.normalize(_isbnController.text.trim());
 
     final pageCount = int.parse(_pageCountController.text.trim());
+
+    final publicationYearText = _publicationYearController.text.trim();
+
+    final publicationYear = publicationYearText.isEmpty
+        ? null
+        : int.parse(publicationYearText);
+
+    final publisherText = _publisherController.text.trim();
+
+    final publisher = publisherText.isEmpty ? null : publisherText;
 
     final id =
         widget.book?.id ??
@@ -93,9 +120,9 @@ class _ManualBookDialogState extends State<ManualBookDialog> {
 
       // Bibliografiset tiedot säilytetään muokkauksessa.
       // Niille lisätään omat muokkauskentät myöhemmin v0.12:ssa.
-      publicationYear: widget.book?.publicationYear,
-      publisher: widget.book?.publisher,
-      binding: widget.book?.binding ?? BookBinding.unknown,
+      publicationYear: publicationYear,
+      publisher: publisher,
+      binding: _selectedBinding,
 
       // Myös kirjan muut jo olemassa olevat tiedot täytyy säilyttää.
       coverUrl: widget.book?.coverUrl,
@@ -166,20 +193,14 @@ class _ManualBookDialogState extends State<ManualBookDialog> {
                     border: OutlineInputBorder(),
                   ),
                   validator: (value) {
-                    final normalized =
-                        value?.trim().replaceAll(RegExp(r'[\s-]'), '') ?? '';
+                    final normalized = IsbnUtils.normalize(value?.trim() ?? '');
 
                     if (normalized.isEmpty) {
                       return null;
                     }
 
-                    final isIsbn10 = RegExp(
-                      r'^\d{9}[\dXx]$',
-                    ).hasMatch(normalized);
-                    final isIsbn13 = RegExp(r'^\d{13}$').hasMatch(normalized);
-
-                    if (!isIsbn10 && !isIsbn13) {
-                      return 'Syötä ISBN-10 tai ISBN-13.';
+                    if (!IsbnUtils.isValid(normalized)) {
+                      return 'Syötä kelvollinen ISBN-10 tai ISBN-13.';
                     }
 
                     return null;
@@ -189,8 +210,8 @@ class _ManualBookDialogState extends State<ManualBookDialog> {
                 TextFormField(
                   controller: _pageCountController,
                   keyboardType: TextInputType.number,
-                  textInputAction: TextInputAction.done,
-                  onFieldSubmitted: (_) => _submit(),
+                  textInputAction: TextInputAction.next,
+                  //onFieldSubmitted: (_) => _submit(),
                   decoration: const InputDecoration(
                     labelText: 'Sivumäärä',
                     prefixIcon: Icon(Icons.format_list_numbered),
@@ -204,6 +225,69 @@ class _ManualBookDialogState extends State<ManualBookDialog> {
                     }
 
                     return null;
+                  },
+                ),
+
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _publicationYearController,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Julkaisuvuosi (valinnainen)',
+                    prefixIcon: Icon(Icons.calendar_today_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    final text = value?.trim() ?? '';
+
+                    if (text.isEmpty) {
+                      return null;
+                    }
+
+                    final year = int.tryParse(text);
+
+                    if (year == null || year < 1 || year > 9999) {
+                      return 'Syötä kelvollinen julkaisuvuosi.';
+                    }
+
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _publisherController,
+                  textInputAction: TextInputAction.done,
+                  decoration: const InputDecoration(
+                    labelText: 'Kustantaja (valinnainen)',
+                    prefixIcon: Icon(Icons.business_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+
+                const SizedBox(height: 14),
+                DropdownButtonFormField<BookBinding>(
+                  initialValue: _selectedBinding,
+                  decoration: const InputDecoration(
+                    labelText: 'Sidosasu',
+                    prefixIcon: Icon(Icons.auto_stories_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                  items: BookBinding.values.map((binding) {
+                    return DropdownMenuItem<BookBinding>(
+                      value: binding,
+                      child: Text(binding.label),
+                    );
+                  }).toList(),
+                  onChanged: (binding) {
+                    if (binding == null) {
+                      return;
+                    }
+
+                    setState(() {
+                      _selectedBinding = binding;
+                    });
                   },
                 ),
                 const SizedBox(height: 20),
