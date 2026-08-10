@@ -2,19 +2,6 @@
 
 ### Suunnitteilla
 
-- Julkaisuvuosi kirjan tietoihin
-- Sidosasu kirjan tietoihin
-- Kustantaja kirjan tietoihin
-- Uusien bibliografisten tietojen hakeminen Finnasta
-- Julkaisuvuoden ja kustantajan täydentäminen Google Booksista
-- Sidosasun tunnistaminen Finnan bibliografisista tiedoista
-- Uusien tietojen näyttäminen ISBN-haun esikatselussa
-- Uusien tietojen näyttäminen kirjan tietosivulla
-- Uusien tietojen muokkaaminen käsin
-- Uusien kenttien tallennus paikalliseen kirjastoon
-- Uusien kenttien sisällyttäminen varmuuskopioihin
-- Vanhojen kirjastojen ja varmuuskopioiden taaksepäin yhteensopivuus
-- Uusien kirjatietojen automaattiset testit
 - Kirjahyllyjen järjestäminen
 - Lajittelu kirjan lisäysajan perusteella
 - Lukemisen aloitus- ja lopetuspäivämäärät
@@ -23,6 +10,85 @@
 - Automaattiset varmuuskopiot
 - Pilvisynkronointi
 - Käyttäjätilit
+
+## [0.12.0-alpha] - 2026-08-10
+
+### Lisätty
+
+- `BookBinding`-tietotyyppi kirjan sidosasun mallintamiseen
+- Kirjalle julkaisuvuosi (`publicationYear`)
+- Kirjalle kustantaja (`publisher`)
+- Kirjalle sidosasu (`binding`)
+- Julkaisuvuoden, kustantajan ja sidosasun JSON-tallennus
+- Vanhojen kirjastotietojen yhteensopiva palautus, kun uusia bibliografisia kenttiä ei vielä ole
+- Julkaisuvuoden ja kustantajan lukeminen Finna-tuloksista
+- Sidosasun tunnistaminen Finnan ISBN- ja formaattitiedoista
+- Finnan kaikkien täsmällisten ISBN-osumien yhdistäminen puuttuvien kenttien täydentämiseksi
+- Täydentävä sidosasuhaku Finnan `/v1/record`-rajapinnasta
+- Sidosasun tunnistaminen Finnan `fullRecord`-metadatasta silloin, kun tavallinen hakutulos ei sisällä tietoa
+- Google Books -varalähde puuttuvalle julkaisuvuodelle
+- Google Books -varalähde puuttuvalle kustantajalle
+- Uusien bibliografisten tietojen näyttäminen ISBN-haun esikatselussa
+- Julkaisuvuoden, kustantajan ja sidosasun näyttäminen kirjan tietosivulla
+- Julkaisuvuoden, kustantajan ja sidosasun käsin lisääminen ja muokkaaminen
+
+### Muutettu
+
+- Kirjan tietomalli säilyttää uudet bibliografiset tiedot `copyWith()`-operaatioissa
+- Kirjan muokkaaminen säilyttää kannen, oman kansikuvan, lukutilan, arvosanan ja muistiinpanot
+- Kirjan hyllyn vaihtaminen säilyttää myös julkaisuvuoden, kustantajan ja sidosasun
+- ISBN-haulla löydetyn kirjan siirtäminen valittuun hyllyyn säilyttää kaikki uudet bibliografiset tiedot
+- Manuaalisen ISBN-kentän validointi käyttää yhteistä `IsbnUtils`-validointia
+- Finna säilyy ensisijaisena lähteenä julkaisuvuodelle ja kustantajalle
+- Google Books täydentää julkaisuvuoden ja kustantajan vain, jos Finna ei niitä tarjoa
+- Sidosasun täydentävä `fullRecord`-haku tehdään vain, jos sidosasu puuttuu tavallisesta Finna-hakutuloksesta
+- Täydentävän Finna-haun epäonnistuminen ei estä muiden kirjatietojen käyttämistä
+- Kirjaston JSON- ja ZIP-varmuuskopiot sisältävät uudet kentät osana kirjan JSON-dataa
+- Varmuuskopion formaattiversio säilyy ennallaan, koska uudet kentät ovat taaksepäin yhteensopivia ja valinnaisia
+
+### Korjattu
+
+- Korjattu tilanne, jossa sidosasu jäi löytymättä, vaikka se oli saatavilla Finnan toisessa täsmällisessä ISBN-osumassa
+- Korjattu tilanne, jossa Finnan Search API:n normalisoitu data ei sisältänyt sidosasua mutta tieto löytyi alkuperäisestä `fullRecord`-metadatasta
+- Estetty väärän ISBN-painoksen sidosasun käyttäminen täydentävässä Finna-haussa
+- Estetty kirjalle jo tallennettujen laajempien metatietojen katoaminen kirjaa uudelleen muodostettaessa
+- Korjattu manuaalisen kirjan muokkauksen yhteydessä aiemmin mahdollinen kansi-, lukutila-, arvosana- ja muistiinpanotietojen katoaminen
+
+### Testattu
+
+- Julkaisuvuoden, kustantajan ja sidosasun oletusarvot
+- Uusien bibliografisten kenttien JSON-tallennus ja palautus
+- Vanhan JSON-datan yhteensopivuus uusien kenttien kanssa
+- Tuntemattoman sidosasuarvon palautuminen `unknown`-arvoksi
+- Virheellisen julkaisuvuoden hylkääminen
+- Virheellisen kustantajatyypin hylkääminen
+- Uusien kenttien säilyminen `copyWith()`-metodissa
+- Julkaisuvuoden ja kustantajan tyhjentäminen `copyWith()`-metodilla
+- Julkaisuvuoden, kustantajan ja kovakantisen sidosasun lukeminen Finnasta
+- Sidosasun valinta täsmällisen ISBN:n perusteella, kun samassa tietueessa on useita ISBN-painoksia
+- Puuttuvan sidosasun täydentäminen myöhemmästä täsmällisestä Finna-osumasta
+- Puuttuvan sidosasun täydentäminen Finnan `fullRecord`-datasta
+- Turhan `fullRecord`-haun välttäminen, kun sidosasu löytyi jo normaalista hakutuloksesta
+- Google Booksin julkaisupäivän muuntaminen julkaisuvuodeksi
+- Puuttuvan julkaisuvuoden ja kustantajan täydentäminen Google Booksista
+- Finnan julkaisuvuoden ja kustantajan ensisijaisuus Google Booksiin nähden
+- Virheellisen Google Books -julkaisupäivän turvallinen ohittaminen
+- ISBN-haun laitetestit suomalaisilla uusilla ja vanhemmilla kirjoilla
+- Julkaisuvuoden, kustantajan ja sidosasun näyttäminen oikealla laitteella
+- Julkaisuvuoden, kustantajan ja sidosasun käsin muokkaaminen oikealla laitteella
+- Sidosasun löytyminen oikealla laitteella myös Finnan `fullRecord`-täydennyksen avulla
+- Flutter-analyysi
+- Kaikki 140 automaattista testiä
+
+### Tunnetut rajoitukset
+
+- Kirjatietojen ja verkkokansien hakeminen edellyttää verkkoyhteyttä
+- Hakutulosten kattavuus riippuu Finnan, Google Booksin ja Open Libraryn aineistoista
+- Kaikille kirjoille ei ole saatavilla kaikkia bibliografisia tietoja
+- Sidosasun löytyminen riippuu siitä, sisältääkö jokin täsmällinen Finna-tietue sidosasutiedon
+- Open Library toimii edelleen varalähteenä muille puuttuville tiedoille ja kansille, mutta sitä ei käytetä painoskohtaisen julkaisuvuoden ensisijaisena lähteenä
+- Kaikille kirjoille ei ole saatavilla kansikuvaa missään käytetyssä kirjapalvelussa
+- Jos käyttökelpoista verkkokantta ei löydy, sovellus näyttää oman varakantensa
 
 ## [0.11.0-alpha] - 2026-08-08
 
