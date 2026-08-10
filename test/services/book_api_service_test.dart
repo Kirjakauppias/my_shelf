@@ -13,6 +13,162 @@ void main() {
   const otherIsbn = '9780140328721';
 
   group('BookApiService', () {
+    test(
+      'täydentää puuttuvan julkaisuvuoden ja kustantajan Google Booksista',
+      () async {
+        final service = BookApiService(
+          finnaService: _FakeFinnaBookSearchService((_) async {
+            return const BookSearchResult(
+              source: BookDataSource.finna,
+              isbn: requestedIsbn,
+              title: 'Finnan kirjan nimi',
+              author: 'Finnan kirjailija',
+              pageCount: 320,
+              binding: BookBinding.hardcover,
+            );
+          }),
+          get: (uri) async {
+            if (uri.host == 'www.googleapis.com') {
+              return _jsonResponse({
+                'items': [
+                  {
+                    'volumeInfo': {
+                      'title': 'Googlen kirjan nimi',
+                      'authors': ['Googlen kirjailija'],
+                      'pageCount': 350,
+                      'publishedDate': '2022-08-15',
+                      'publisher': 'Google-kustantaja',
+                      'industryIdentifiers': [
+                        {'type': 'ISBN_13', 'identifier': requestedIsbn},
+                      ],
+                      'imageLinks': {
+                        'thumbnail': 'https://example.com/cover.jpg',
+                      },
+                    },
+                  },
+                ],
+              });
+            }
+
+            if (uri.host == 'openlibrary.org') {
+              return _jsonResponse({'docs': []});
+            }
+
+            throw StateError('Odottamaton palvelu: ${uri.host}');
+          },
+        );
+
+        final book = await service.findBookByIsbn(requestedIsbn);
+
+        expect(book, isNotNull);
+
+        // Finnan perustiedot säilyvät.
+        expect(book!.title, 'Finnan kirjan nimi');
+        expect(book.author, 'Finnan kirjailija');
+        expect(book.pageCount, 320);
+        expect(book.binding, BookBinding.hardcover);
+
+        // Puuttuvat tiedot täydennetään Googlesta.
+        expect(book.publicationYear, 2022);
+        expect(book.publisher, 'Google-kustantaja');
+      },
+    );
+
+    test(
+      'Finnan julkaisuvuosi ja kustantaja ohittavat Google Booksin arvot',
+      () async {
+        final service = BookApiService(
+          finnaService: _FakeFinnaBookSearchService((_) async {
+            return const BookSearchResult(
+              source: BookDataSource.finna,
+              isbn: requestedIsbn,
+              title: 'Finnan kirja',
+              author: 'Finnan kirjailija',
+              pageCount: 300,
+              publicationYear: 2020,
+              publisher: 'Finna-kustantaja',
+            );
+          }),
+          get: (uri) async {
+            if (uri.host == 'www.googleapis.com') {
+              return _jsonResponse({
+                'items': [
+                  {
+                    'volumeInfo': {
+                      'title': 'Google-kirja',
+                      'authors': ['Google-kirjailija'],
+                      'pageCount': 400,
+                      'publishedDate': '2024',
+                      'publisher': 'Google-kustantaja',
+                      'industryIdentifiers': [
+                        {'type': 'ISBN_13', 'identifier': requestedIsbn},
+                      ],
+                      'imageLinks': {
+                        'thumbnail': 'https://example.com/cover.jpg',
+                      },
+                    },
+                  },
+                ],
+              });
+            }
+
+            if (uri.host == 'openlibrary.org') {
+              return _jsonResponse({'docs': []});
+            }
+
+            throw StateError('Odottamaton palvelu: ${uri.host}');
+          },
+        );
+
+        final book = await service.findBookByIsbn(requestedIsbn);
+
+        expect(book, isNotNull);
+
+        expect(book!.publicationYear, 2020);
+        expect(book.publisher, 'Finna-kustantaja');
+      },
+    );
+
+    test('ohittaa Google Booksin virheellisen julkaisupäivän', () async {
+      final service = BookApiService(
+        finnaService: _FakeFinnaBookSearchService((_) async => null),
+        get: (uri) async {
+          if (uri.host == 'www.googleapis.com') {
+            return _jsonResponse({
+              'items': [
+                {
+                  'volumeInfo': {
+                    'title': 'Testikirja',
+                    'authors': ['Testikirjailija'],
+                    'pageCount': 200,
+                    'publishedDate': 'tuntematon',
+                    'publisher': 'Testikustantaja',
+                    'industryIdentifiers': [
+                      {'type': 'ISBN_13', 'identifier': requestedIsbn},
+                    ],
+                    'imageLinks': {
+                      'thumbnail': 'https://example.com/cover.jpg',
+                    },
+                  },
+                },
+              ],
+            });
+          }
+
+          if (uri.host == 'openlibrary.org') {
+            return _jsonResponse({'docs': []});
+          }
+
+          throw StateError('Odottamaton palvelu: ${uri.host}');
+        },
+      );
+
+      final book = await service.findBookByIsbn(requestedIsbn);
+
+      expect(book, isNotNull);
+      expect(book!.publicationYear, isNull);
+      expect(book.publisher, 'Testikustantaja');
+    });
     test('yhdistää Finnan perustiedot ja Google Books -kannen', () async {
       var openLibraryCallCount = 0;
 

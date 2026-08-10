@@ -207,6 +207,8 @@ class BookApiService {
         title: _readNonEmptyString(volumeInfo['title']),
         author: author,
         pageCount: pageCount,
+        publicationYear: _readGooglePublicationYear(volumeInfo),
+        publisher: _readNonEmptyString(volumeInfo['publisher']),
         coverUrl: _readGoogleCoverUrl(volumeInfo),
       );
 
@@ -450,6 +452,35 @@ class BookApiService {
     }
 
     return coverUrl.replaceFirst('http://', 'https://');
+  }
+
+  int? _readGooglePublicationYear(Map<String, dynamic> volumeInfo) {
+    final publishedDate = _readNonEmptyString(volumeInfo['publishedDate']);
+
+    if (publishedDate == null) {
+      return null;
+    }
+
+    // Google Books voi palauttaa esimerkiksi:
+    //
+    // 2024
+    // 2024-05
+    // 2024-05-17
+    //
+    // My Shelf tallentaa vain julkaisuvuoden.
+    final match = RegExp(r'^(\d{4})').firstMatch(publishedDate);
+
+    if (match == null) {
+      return null;
+    }
+
+    final year = int.tryParse(match.group(1)!);
+
+    if (year == null || year < 1 || year > 9999) {
+      return null;
+    }
+
+    return year;
   }
 
   String? _readNonEmptyString(Object? value) {
