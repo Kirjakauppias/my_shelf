@@ -8,7 +8,9 @@ Kirjat voidaan järjestää omiin hyllyihin, lajitella, suodattaa ja asettaa hal
 
 ## Nykyinen versio
 
-**v0.12.0-alpha**
+**v0.12.1-alpha**
+
+Version v0.12.1-alpha muuttaa Android-julkaisujen allekirjoituksen pysyvään My Shelf -release-avaimeen. Version toiminnalliset ominaisuudet vastaavat v0.12.0-alphaa.
 
 Tämä on sovelluksen kehitysversio. Sovelluksen keskeiset toiminnot ovat käytettävissä, mutta ominaisuudet, käyttöliittymä ja tietojen tallennustapa voivat vielä muuttua.
 
