@@ -11,6 +11,27 @@
 - Pilvisynkronointi
 - Käyttäjätilit
 
+## [0.12.1-alpha] - 2026-08-25
+
+### Muutettu
+
+- Androidin release-build käyttää nyt projektin omaa pysyvää release-allekirjoitusavainta debug-avaimen sijasta
+- Release-allekirjoituksen asetukset luetaan Gitin ulkopuolelle jätetystä `android/key.properties`-tiedostosta
+
+### Testattu
+
+- Release-APK:n onnistunut muodostaminen
+- APK:n allekirjoituksen tarkistus `apksigner`-työkalulla
+- APK:n SHA-256-sertifikaattitunniste vastaa My Shelf -release-keystoren sertifikaattitunnistetta
+- Flutter-analyysi
+- Kaikki 140 automaattista testiä
+
+### Huomioitavaa
+
+- `v0.12.0-alpha`-APK oli allekirjoitettu Flutterin debug-avaimella
+- `v0.12.1-alpha` ja tulevat julkaisut allekirjoitetaan pysyvällä My Shelf -release-avaimella
+- Debug-avaimella asennettua `v0.12.0-alpha`-versiota ei voi päivittää suoraan `v0.12.1-alpha`-versioon, vaan vanha versio täytyy poistaa kerran ennen uuden asentamista
+
 ## [0.12.0-alpha] - 2026-08-25
 
 ### Lisätty
