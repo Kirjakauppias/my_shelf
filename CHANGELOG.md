@@ -11,7 +11,7 @@
 - Pilvisynkronointi
 - Käyttäjätilit
 
-## [0.12.0-alpha] - 2026-08-10
+## [0.12.0-alpha] - 2026-08-25
 
 ### Lisätty
 
