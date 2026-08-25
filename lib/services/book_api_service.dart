@@ -9,6 +9,7 @@ import '../utils/isbn_utils.dart';
 import 'book_api_exception.dart';
 import 'finna_book_search_service.dart';
 import 'finna_cover_validator.dart';
+import '../models/book_binding.dart';
 
 typedef BookApiHttpGet = Future<http.Response> Function(Uri uri);
 
@@ -20,20 +21,15 @@ class BookApiService {
   final FinnaCoverValidator _finnaCoverValidator;
 
   BookApiService({
-  BookApiHttpGet? get,
-  FinnaBookSearchService? finnaService,
-  FinnaCoverValidator? finnaCoverValidator,
-}) : _get = get ?? _defaultHttpGet,
-     _finnaService =
-         finnaService ??
-         FinnaBookSearchService(
-           get: get ?? _defaultHttpGet,
-         ),
-     _finnaCoverValidator =
-         finnaCoverValidator ??
-         FinnaCoverValidator(
-           get: get ?? _defaultHttpGet,
-         );
+    BookApiHttpGet? get,
+    FinnaBookSearchService? finnaService,
+    FinnaCoverValidator? finnaCoverValidator,
+  }) : _get = get ?? _defaultHttpGet,
+       _finnaService =
+           finnaService ?? FinnaBookSearchService(get: get ?? _defaultHttpGet),
+       _finnaCoverValidator =
+           finnaCoverValidator ??
+           FinnaCoverValidator(get: get ?? _defaultHttpGet);
 
   static Future<http.Response> _defaultHttpGet(Uri uri) {
     return http.get(uri);
@@ -74,17 +70,17 @@ class BookApiService {
     var mergedData = _mergeResults(results);
 
     // Finnan URL voi palauttaa puuttuvan kannen tilalla
-// läpinäkyvän 10 × 10 pikselin GIF-kuvan.
-//
-// Tarkistus tehdään vain silloin, kun Finnan kuva olisi
-// oikeasti valittu lopulliseksi kansikuvaksi. Jos Google
-// Booksista löytyi kansi, ylimääräistä verkkopyyntöä ei tehdä.
-if (mergedData.coverSource == BookDataSource.finna) {
-  await _removeUnusableFinnaCover(results);
-  mergedData = _mergeResults(results);
-}
+    // läpinäkyvän 10 × 10 pikselin GIF-kuvan.
+    //
+    // Tarkistus tehdään vain silloin, kun Finnan kuva olisi
+    // oikeasti valittu lopulliseksi kansikuvaksi. Jos Google
+    // Booksista löytyi kansi, ylimääräistä verkkopyyntöä ei tehdä.
+    if (mergedData.coverSource == BookDataSource.finna) {
+      await _removeUnusableFinnaCover(results);
+      mergedData = _mergeResults(results);
+    }
 
-if (_needsAdditionalSource(mergedData)) {
+    if (_needsAdditionalSource(mergedData)) {
       final openLibraryAttempt = await _attemptSearch(
         () => _findFromOpenLibrary(normalizedIsbn),
       );
@@ -120,6 +116,9 @@ if (_needsAdditionalSource(mergedData)) {
       title: mergedData.title ?? 'Tuntematon kirja',
       author: mergedData.author ?? 'Tuntematon kirjailija',
       pageCount: mergedData.pageCount ?? 300,
+      publicationYear: mergedData.publicationYear,
+      publisher: mergedData.publisher,
+      binding: mergedData.binding ?? BookBinding.unknown,
       coverUrl: mergedData.coverUrl,
       spineColor: _createSpineColor(normalizedIsbn),
     );
@@ -208,6 +207,8 @@ if (_needsAdditionalSource(mergedData)) {
         title: _readNonEmptyString(volumeInfo['title']),
         author: author,
         pageCount: pageCount,
+        publicationYear: _readGooglePublicationYear(volumeInfo),
+        publisher: _readNonEmptyString(volumeInfo['publisher']),
         coverUrl: _readGoogleCoverUrl(volumeInfo),
       );
 
@@ -376,32 +377,31 @@ if (_needsAdditionalSource(mergedData)) {
 
     final BookSearchResult? coverResult;
 
-if (google?.coverUrl != null) {
-  coverResult = google;
-} else if (openLibrary?.coverUrl != null) {
-  coverResult = openLibrary;
-} else if (finna?.coverUrl != null) {
-  coverResult = finna;
-} else {
-  coverResult = null;
-}
+    if (google?.coverUrl != null) {
+      coverResult = google;
+    } else if (openLibrary?.coverUrl != null) {
+      coverResult = openLibrary;
+    } else if (finna?.coverUrl != null) {
+      coverResult = finna;
+    } else {
+      coverResult = null;
+    }
 
     return _MergedBookData(
-  title:
-      finna?.title ??
-      google?.title ??
-      openLibrary?.title,
-  author:
-      finna?.author ??
-      google?.author ??
-      openLibrary?.author,
-  pageCount:
-      finna?.pageCount ??
-      google?.pageCount ??
-      openLibrary?.pageCount,
-  coverUrl: coverResult?.coverUrl,
-  coverSource: coverResult?.source,
-);
+      title: finna?.title ?? google?.title ?? openLibrary?.title,
+      author: finna?.author ?? google?.author ?? openLibrary?.author,
+      pageCount:
+          finna?.pageCount ?? google?.pageCount ?? openLibrary?.pageCount,
+      publicationYear:
+          finna?.publicationYear ??
+          google?.publicationYear ??
+          openLibrary?.publicationYear,
+      publisher:
+          finna?.publisher ?? google?.publisher ?? openLibrary?.publisher,
+      binding: finna?.binding ?? google?.binding ?? openLibrary?.binding,
+      coverUrl: coverResult?.coverUrl,
+      coverSource: coverResult?.source,
+    );
   }
 
   bool _needsAdditionalSource(_MergedBookData data) {
@@ -454,6 +454,35 @@ if (google?.coverUrl != null) {
     return coverUrl.replaceFirst('http://', 'https://');
   }
 
+  int? _readGooglePublicationYear(Map<String, dynamic> volumeInfo) {
+    final publishedDate = _readNonEmptyString(volumeInfo['publishedDate']);
+
+    if (publishedDate == null) {
+      return null;
+    }
+
+    // Google Books voi palauttaa esimerkiksi:
+    //
+    // 2024
+    // 2024-05
+    // 2024-05-17
+    //
+    // My Shelf tallentaa vain julkaisuvuoden.
+    final match = RegExp(r'^(\d{4})').firstMatch(publishedDate);
+
+    if (match == null) {
+      return null;
+    }
+
+    final year = int.tryParse(match.group(1)!);
+
+    if (year == null || year < 1 || year > 9999) {
+      return null;
+    }
+
+    return year;
+  }
+
   String? _readNonEmptyString(Object? value) {
     if (value is! String) {
       return null;
@@ -479,31 +508,26 @@ if (google?.coverUrl != null) {
     return colors[isbn.hashCode.abs() % colors.length];
   }
 
-  Future<void> _removeUnusableFinnaCover(
-  List<BookSearchResult> results,
-) async {
-  final finnaResultIndex = results.indexWhere(
-    (result) =>
-        result.source == BookDataSource.finna &&
-        result.coverUrl != null,
-  );
+  Future<void> _removeUnusableFinnaCover(List<BookSearchResult> results) async {
+    final finnaResultIndex = results.indexWhere(
+      (result) =>
+          result.source == BookDataSource.finna && result.coverUrl != null,
+    );
 
-  if (finnaResultIndex == -1) {
-    return;
+    if (finnaResultIndex == -1) {
+      return;
+    }
+
+    final finnaResult = results[finnaResultIndex];
+
+    final isUsableCover = await _finnaCoverValidator.isUsableCoverUrl(
+      finnaResult.coverUrl,
+    );
+
+    if (!isUsableCover) {
+      results[finnaResultIndex] = finnaResult.withoutCover();
+    }
   }
-
-  final finnaResult = results[finnaResultIndex];
-
-  final isUsableCover =
-      await _finnaCoverValidator.isUsableCoverUrl(
-        finnaResult.coverUrl,
-      );
-
-  if (!isUsableCover) {
-    results[finnaResultIndex] =
-        finnaResult.withoutCover();
-  }
-}
 }
 
 class _BookSearchAttempt {
@@ -517,6 +541,9 @@ class _MergedBookData {
   final String? title;
   final String? author;
   final int? pageCount;
+  final int? publicationYear;
+  final String? publisher;
+  final BookBinding? binding;
   final String? coverUrl;
   final BookDataSource? coverSource;
 
@@ -524,6 +551,9 @@ class _MergedBookData {
     this.title,
     this.author,
     this.pageCount,
+    this.publicationYear,
+    this.publisher,
+    this.binding,
     this.coverUrl,
     this.coverSource,
   });

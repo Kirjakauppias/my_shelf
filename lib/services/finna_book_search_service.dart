@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../models/book_search_result.dart';
 import '../utils/isbn_utils.dart';
 import 'book_api_exception.dart';
+import '../models/book_binding.dart';
 
 typedef FinnaHttpGet = Future<http.Response> Function(Uri uri);
 
@@ -13,6 +14,71 @@ class FinnaBookSearchService {
   static const Duration _requestTimeout = Duration(seconds: 15);
 
   final FinnaHttpGet _get;
+
+  BookSearchResult _mergeMatchingResults(
+    BookSearchResult current,
+    BookSearchResult additional,
+  ) {
+    return BookSearchResult(
+      source: BookDataSource.finna,
+      isbn: current.isbn,
+      title: current.title ?? additional.title,
+      author: current.author ?? additional.author,
+      pageCount: current.pageCount ?? additional.pageCount,
+      publicationYear: current.publicationYear ?? additional.publicationYear,
+      publisher: current.publisher ?? additional.publisher,
+      binding: current.binding ?? additional.binding,
+      coverUrl: current.coverUrl ?? additional.coverUrl,
+    );
+  }
+
+  int? _readPublicationYear(Map<String, dynamic> record) {
+    final publicationDatesRaw = record['publicationDates'];
+
+    if (publicationDatesRaw is! List) {
+      return null;
+    }
+
+    final yearExpression = RegExp(r'\b(\d{4})\b');
+
+    for (final value in publicationDatesRaw) {
+      if (value is! String) {
+        continue;
+      }
+
+      final match = yearExpression.firstMatch(value);
+
+      if (match == null) {
+        continue;
+      }
+
+      final year = int.tryParse(match.group(1)!);
+
+      if (year != null && year >= 1 && year <= 9999) {
+        return year;
+      }
+    }
+
+    return null;
+  }
+
+  String? _readPublisher(Map<String, dynamic> record) {
+    final publishersRaw = record['publishers'];
+
+    if (publishersRaw is! List) {
+      return null;
+    }
+
+    for (final value in publishersRaw) {
+      final publisher = _readNonEmptyString(value);
+
+      if (publisher != null) {
+        return publisher;
+      }
+    }
+
+    return null;
+  }
 
   FinnaBookSearchService({FinnaHttpGet? get})
     : _get = get ?? ((uri) => http.get(uri));
@@ -39,6 +105,9 @@ class FinnaBookSearchService {
         'cleanIsbn',
         'images',
         'physicalDescriptions',
+        'publicationDates',
+        'publishers',
+        'formats',
       ],
     });
 
@@ -72,6 +141,8 @@ class FinnaBookSearchService {
       throw const BookApiException('Finna palautti virheellisen vastauksen.');
     }
 
+    BookSearchResult? mergedResult;
+
     for (final recordRaw in recordsRaw) {
       if (recordRaw is! Map) {
         continue;
@@ -85,8 +156,116 @@ class FinnaBookSearchService {
 
       final result = _resultFromRecord(record, isbn: normalizedIsbn);
 
-      if (result.hasAnyData) {
-        return result;
+      if (!result.hasAnyData) {
+        continue;
+      }
+
+      mergedResult = mergedResult == null
+          ? result
+          : _mergeMatchingResults(mergedResult, result);
+    }
+
+    if (mergedResult == null) {
+      return null;
+    }
+
+    if (mergedResult.binding != null) {
+      return mergedResult;
+    }
+
+    final binding = await _findBindingFromFullRecords(
+      recordsRaw,
+      requestedIsbn: normalizedIsbn,
+    );
+
+    if (binding == null) {
+      return mergedResult;
+    }
+
+    return BookSearchResult(
+      source: mergedResult.source,
+      isbn: mergedResult.isbn,
+      title: mergedResult.title,
+      author: mergedResult.author,
+      pageCount: mergedResult.pageCount,
+      publicationYear: mergedResult.publicationYear,
+      publisher: mergedResult.publisher,
+      binding: binding,
+      coverUrl: mergedResult.coverUrl,
+    );
+  }
+
+  Future<BookBinding?> _findBindingFromFullRecord(String recordId) async {
+    final uri = Uri.https('api.finna.fi', '/v1/record', {
+      'id': recordId,
+      'field[]': 'fullRecord',
+    });
+
+    try {
+      final response = await _get(uri).timeout(_requestTimeout);
+
+      if (response.statusCode != 200) {
+        return null;
+      }
+
+      final decodedResponse = _decodeResponse(response);
+
+      final recordsRaw = decodedResponse['records'];
+
+      if (recordsRaw is! List || recordsRaw.isEmpty) {
+        return null;
+      }
+
+      final recordRaw = recordsRaw.first;
+
+      if (recordRaw is! Map) {
+        return null;
+      }
+
+      final record = Map<String, dynamic>.from(recordRaw);
+
+      final fullRecord = _readNonEmptyString(record['fullRecord']);
+
+      if (fullRecord == null) {
+        return null;
+      }
+
+      return _bindingFromText(fullRecord);
+    } catch (_) {
+      // Sidosasun täydentävän haun epäonnistuminen ei saa
+      // estää muun kirjatiedon käyttämistä.
+      return null;
+    }
+  }
+
+  Future<BookBinding?> _findBindingFromFullRecords(
+    List<dynamic> recordsRaw, {
+    required String requestedIsbn,
+  }) async {
+    final checkedRecordIds = <String>{};
+
+    for (final recordRaw in recordsRaw) {
+      if (recordRaw is! Map) {
+        continue;
+      }
+
+      final record = Map<String, dynamic>.from(recordRaw);
+
+      // Tutkitaan vain tietueet, jotka vastaavat haettua ISBN:ää.
+      if (!_recordMatchesIsbn(record, requestedIsbn)) {
+        continue;
+      }
+
+      final recordId = _readNonEmptyString(record['id']);
+
+      if (recordId == null || !checkedRecordIds.add(recordId)) {
+        continue;
+      }
+
+      final binding = await _findBindingFromFullRecord(recordId);
+
+      if (binding != null) {
+        return binding;
       }
     }
 
@@ -171,9 +350,15 @@ class FinnaBookSearchService {
       '',
     );
 
-    value = value.split('(').first.trim();
+    // ISBN on Finna-merkinnässä alussa. Sen jälkeen voi tulla
+    // esimerkiksi "kovakantinen", "nidottu" tai "(sid.)".
+    final match = RegExp(r'^[0-9Xx\s-]+').firstMatch(value);
 
-    final normalizedIsbn = IsbnUtils.normalize(value);
+    if (match == null) {
+      return null;
+    }
+
+    final normalizedIsbn = IsbnUtils.normalize(match.group(0)!.trim());
 
     return IsbnUtils.isValid(normalizedIsbn) ? normalizedIsbn : null;
   }
@@ -191,6 +376,9 @@ class FinnaBookSearchService {
       title: title,
       author: author,
       pageCount: _readPageCount(record),
+      publicationYear: _readPublicationYear(record),
+      publisher: _readPublisher(record),
+      binding: _readBinding(record, requestedIsbn: isbn),
       coverUrl: _readCoverUrl(
         record,
         requestedIsbn: isbn,
@@ -387,5 +575,94 @@ class FinnaBookSearchService {
     final trimmedValue = value.trim();
 
     return trimmedValue.isEmpty ? null : trimmedValue;
+  }
+
+  BookBinding? _bindingFromText(String source) {
+    final value = source.toLowerCase();
+
+    if (value.contains('kovakantinen') ||
+        value.contains('hardcover') ||
+        value.contains('hardback') ||
+        value.contains('sidottu') ||
+        RegExp(r'(^|[\s(])sid\.?([\s)]|$)').hasMatch(value)) {
+      return BookBinding.hardcover;
+    }
+
+    if (value.contains('pehmeäkantinen') ||
+        value.contains('paperback') ||
+        value.contains('softcover') ||
+        value.contains('softback') ||
+        value.contains('nidottu') ||
+        RegExp(r'(^|[\s(])nid\.?([\s)]|$)').hasMatch(value)) {
+      return BookBinding.paperback;
+    }
+
+    if (value.contains('e-kirja') ||
+        value.contains('ebook') ||
+        value.contains('e-book')) {
+      return BookBinding.ebook;
+    }
+
+    if (value.contains('äänikirja') || value.contains('audiobook')) {
+      return BookBinding.audiobook;
+    }
+
+    return null;
+  }
+
+  BookBinding? _readBinding(
+    Map<String, dynamic> record, {
+    required String requestedIsbn,
+  }) {
+    final isbnsRaw = record['isbns'];
+
+    // Ensisijaisesti päätellään sidosasu juuri haettua ISBN:ää
+    // vastaavasta ISBN-merkinnästä.
+    if (isbnsRaw is List) {
+      for (final value in isbnsRaw) {
+        if (value is! String) {
+          continue;
+        }
+
+        final recordIsbn = _extractIsbn(value);
+
+        if (recordIsbn == null ||
+            !IsbnUtils.areEquivalent(recordIsbn, requestedIsbn)) {
+          continue;
+        }
+
+        final binding = _bindingFromText(value);
+
+        if (binding != null) {
+          return binding;
+        }
+      }
+    }
+
+    // Jos ISBN-merkintä ei kerro sidosasua, voidaan tunnistaa
+    // esimerkiksi e-kirja Finnan aineistotyypistä.
+    final formatsRaw = record['formats'];
+
+    if (formatsRaw is List) {
+      for (final formatRaw in formatsRaw) {
+        if (formatRaw is! Map) {
+          continue;
+        }
+
+        final format = Map<String, dynamic>.from(formatRaw);
+
+        final value = _readNonEmptyString(format['value']) ?? '';
+
+        final translated = _readNonEmptyString(format['translated']) ?? '';
+
+        final binding = _bindingFromText('$value $translated');
+
+        if (binding != null) {
+          return binding;
+        }
+      }
+    }
+
+    return null;
   }
 }

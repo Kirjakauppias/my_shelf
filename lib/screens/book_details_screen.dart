@@ -5,6 +5,7 @@ import '../dialogs/manual_book_dialog.dart';
 import '../services/custom_cover_service.dart';
 import '../widgets/book_cover_hero.dart';
 import '../widgets/shelf_board.dart';
+import '../models/book_binding.dart';
 
 class BookDetailsResult {
   final bool deleted;
@@ -493,6 +494,24 @@ class BookDetailsScreen extends StatelessWidget {
                       icon: Icons.format_list_numbered,
                       label: 'Sivumäärä',
                       value: '${book.pageCount}',
+                    ),
+                    const Divider(height: 1),
+                    _BookDetailRow(
+                      icon: Icons.calendar_today_outlined,
+                      label: 'Julkaisuvuosi',
+                      value: book.publicationYear?.toString() ?? 'Ei tiedossa',
+                    ),
+                    const Divider(height: 1),
+                    _BookDetailRow(
+                      icon: Icons.business_outlined,
+                      label: 'Kustantaja',
+                      value: book.publisher ?? 'Ei tiedossa',
+                    ),
+                    const Divider(height: 1),
+                    _BookDetailRow(
+                      icon: Icons.auto_stories_outlined,
+                      label: 'Sidosasu',
+                      value: book.binding.label,
                     ),
                   ],
                 ),

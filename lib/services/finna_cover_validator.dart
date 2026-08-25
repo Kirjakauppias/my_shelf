@@ -11,9 +11,7 @@ class FinnaCoverValidator {
 
   final FinnaCoverHttpGet _get;
 
-  FinnaCoverValidator({
-    FinnaCoverHttpGet? get,
-  }) : _get = get ?? _defaultHttpGet;
+  FinnaCoverValidator({FinnaCoverHttpGet? get}) : _get = get ?? _defaultHttpGet;
 
   static Future<http.Response> _defaultHttpGet(Uri uri) {
     return http.get(uri);
@@ -26,16 +24,14 @@ class FinnaCoverValidator {
 
     final uri = Uri.tryParse(coverUrl);
 
-    if (uri == null ||
-        (uri.scheme != 'https' && uri.scheme != 'http')) {
+    if (uri == null || (uri.scheme != 'https' && uri.scheme != 'http')) {
       return false;
     }
 
     try {
       final response = await _get(uri).timeout(_requestTimeout);
 
-      if (response.statusCode != 200 ||
-          response.bodyBytes.isEmpty) {
+      if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
         return false;
       }
 
@@ -45,8 +41,7 @@ class FinnaCoverValidator {
           .trim()
           .toLowerCase();
 
-      if (contentType != null &&
-          !contentType.startsWith('image/')) {
+      if (contentType != null && !contentType.startsWith('image/')) {
         return false;
       }
 

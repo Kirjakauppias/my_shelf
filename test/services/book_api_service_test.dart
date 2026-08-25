@@ -6,12 +6,169 @@ import 'package:my_shelf/models/book_search_result.dart';
 import 'package:my_shelf/services/book_api_exception.dart';
 import 'package:my_shelf/services/book_api_service.dart';
 import 'package:my_shelf/services/finna_book_search_service.dart';
+import 'package:my_shelf/models/book_binding.dart';
 
 void main() {
   const requestedIsbn = '9789510314357';
   const otherIsbn = '9780140328721';
 
   group('BookApiService', () {
+    test(
+      'täydentää puuttuvan julkaisuvuoden ja kustantajan Google Booksista',
+      () async {
+        final service = BookApiService(
+          finnaService: _FakeFinnaBookSearchService((_) async {
+            return const BookSearchResult(
+              source: BookDataSource.finna,
+              isbn: requestedIsbn,
+              title: 'Finnan kirjan nimi',
+              author: 'Finnan kirjailija',
+              pageCount: 320,
+              binding: BookBinding.hardcover,
+            );
+          }),
+          get: (uri) async {
+            if (uri.host == 'www.googleapis.com') {
+              return _jsonResponse({
+                'items': [
+                  {
+                    'volumeInfo': {
+                      'title': 'Googlen kirjan nimi',
+                      'authors': ['Googlen kirjailija'],
+                      'pageCount': 350,
+                      'publishedDate': '2022-08-15',
+                      'publisher': 'Google-kustantaja',
+                      'industryIdentifiers': [
+                        {'type': 'ISBN_13', 'identifier': requestedIsbn},
+                      ],
+                      'imageLinks': {
+                        'thumbnail': 'https://example.com/cover.jpg',
+                      },
+                    },
+                  },
+                ],
+              });
+            }
+
+            if (uri.host == 'openlibrary.org') {
+              return _jsonResponse({'docs': []});
+            }
+
+            throw StateError('Odottamaton palvelu: ${uri.host}');
+          },
+        );
+
+        final book = await service.findBookByIsbn(requestedIsbn);
+
+        expect(book, isNotNull);
+
+        // Finnan perustiedot säilyvät.
+        expect(book!.title, 'Finnan kirjan nimi');
+        expect(book.author, 'Finnan kirjailija');
+        expect(book.pageCount, 320);
+        expect(book.binding, BookBinding.hardcover);
+
+        // Puuttuvat tiedot täydennetään Googlesta.
+        expect(book.publicationYear, 2022);
+        expect(book.publisher, 'Google-kustantaja');
+      },
+    );
+
+    test(
+      'Finnan julkaisuvuosi ja kustantaja ohittavat Google Booksin arvot',
+      () async {
+        final service = BookApiService(
+          finnaService: _FakeFinnaBookSearchService((_) async {
+            return const BookSearchResult(
+              source: BookDataSource.finna,
+              isbn: requestedIsbn,
+              title: 'Finnan kirja',
+              author: 'Finnan kirjailija',
+              pageCount: 300,
+              publicationYear: 2020,
+              publisher: 'Finna-kustantaja',
+            );
+          }),
+          get: (uri) async {
+            if (uri.host == 'www.googleapis.com') {
+              return _jsonResponse({
+                'items': [
+                  {
+                    'volumeInfo': {
+                      'title': 'Google-kirja',
+                      'authors': ['Google-kirjailija'],
+                      'pageCount': 400,
+                      'publishedDate': '2024',
+                      'publisher': 'Google-kustantaja',
+                      'industryIdentifiers': [
+                        {'type': 'ISBN_13', 'identifier': requestedIsbn},
+                      ],
+                      'imageLinks': {
+                        'thumbnail': 'https://example.com/cover.jpg',
+                      },
+                    },
+                  },
+                ],
+              });
+            }
+
+            if (uri.host == 'openlibrary.org') {
+              return _jsonResponse({'docs': []});
+            }
+
+            throw StateError('Odottamaton palvelu: ${uri.host}');
+          },
+        );
+
+        final book = await service.findBookByIsbn(requestedIsbn);
+
+        expect(book, isNotNull);
+
+        expect(book!.publicationYear, 2020);
+        expect(book.publisher, 'Finna-kustantaja');
+      },
+    );
+
+    test('ohittaa Google Booksin virheellisen julkaisupäivän', () async {
+      final service = BookApiService(
+        finnaService: _FakeFinnaBookSearchService((_) async => null),
+        get: (uri) async {
+          if (uri.host == 'www.googleapis.com') {
+            return _jsonResponse({
+              'items': [
+                {
+                  'volumeInfo': {
+                    'title': 'Testikirja',
+                    'authors': ['Testikirjailija'],
+                    'pageCount': 200,
+                    'publishedDate': 'tuntematon',
+                    'publisher': 'Testikustantaja',
+                    'industryIdentifiers': [
+                      {'type': 'ISBN_13', 'identifier': requestedIsbn},
+                    ],
+                    'imageLinks': {
+                      'thumbnail': 'https://example.com/cover.jpg',
+                    },
+                  },
+                },
+              ],
+            });
+          }
+
+          if (uri.host == 'openlibrary.org') {
+            return _jsonResponse({'docs': []});
+          }
+
+          throw StateError('Odottamaton palvelu: ${uri.host}');
+        },
+      );
+
+      final book = await service.findBookByIsbn(requestedIsbn);
+
+      expect(book, isNotNull);
+      expect(book!.publicationYear, isNull);
+      expect(book.publisher, 'Testikustantaja');
+    });
     test('yhdistää Finnan perustiedot ja Google Books -kannen', () async {
       var openLibraryCallCount = 0;
 
@@ -22,6 +179,9 @@ void main() {
             isbn: requestedIsbn,
             title: 'Finnan kirjan nimi',
             author: 'Finnan kirjailija',
+            publicationYear: 2024,
+            publisher: 'Testikustantaja',
+            binding: BookBinding.hardcover,
           );
         }),
         get: (uri) async {
@@ -59,19 +219,19 @@ void main() {
       expect(book!.title, 'Finnan kirjan nimi');
       expect(book.author, 'Finnan kirjailija');
       expect(book.pageCount, 412);
+      expect(book.publicationYear, 2024);
+      expect(book.publisher, 'Testikustantaja');
+      expect(book.binding, BookBinding.hardcover);
 
       expect(book.coverUrl, 'https://example.com/cover.jpg');
 
       expect(openLibraryCallCount, 0);
     });
 
-    test(
-  'hylkää Finnan 10 x 10 paikkamerkin ja käyttää '
-  'Open Libraryn kansikuvaa',
-  () async {
-    final service = BookApiService(
-      finnaService: _FakeFinnaBookSearchService(
-        (_) async {
+    test('hylkää Finnan 10 x 10 paikkamerkin ja käyttää '
+        'Open Libraryn kansikuvaa', () async {
+      final service = BookApiService(
+        finnaService: _FakeFinnaBookSearchService((_) async {
           return const BookSearchResult(
             source: BookDataSource.finna,
             isbn: requestedIsbn,
@@ -82,63 +242,48 @@ void main() {
                 'https://www.finna.fi/'
                 'Cover/Show?id=test-record',
           );
+        }),
+        get: (uri) async {
+          if (uri.host == 'www.googleapis.com') {
+            return _jsonResponse({'items': []});
+          }
+
+          if (uri.host == 'www.finna.fi' && uri.path == '/Cover/Show') {
+            return http.Response.bytes(
+              _gifHeader(width: 10, height: 10),
+              200,
+              headers: const {'content-type': 'image/gif'},
+            );
+          }
+
+          if (uri.host == 'openlibrary.org') {
+            return _jsonResponse({
+              'docs': [
+                {
+                  'title': 'Open Libraryn kirja',
+                  'author_name': ['Open Libraryn kirjailija'],
+                  'number_of_pages_median': 320,
+                  'cover_i': 98765,
+                  'isbn': [requestedIsbn],
+                },
+              ],
+            });
+          }
+
+          throw StateError('Odottamaton palvelu: ${uri.host}');
         },
-      ),
-      get: (uri) async {
-        if (uri.host == 'www.googleapis.com') {
-          return _jsonResponse({
-            'items': [],
-          });
-        }
+      );
 
-        if (uri.host == 'www.finna.fi' &&
-            uri.path == '/Cover/Show') {
-          return http.Response.bytes(
-            _gifHeader(width: 10, height: 10),
-            200,
-            headers: const {
-              'content-type': 'image/gif',
-            },
-          );
-        }
+      final book = await service.findBookByIsbn(requestedIsbn);
 
-        if (uri.host == 'openlibrary.org') {
-          return _jsonResponse({
-            'docs': [
-              {
-                'title': 'Open Libraryn kirja',
-                'author_name': [
-                  'Open Libraryn kirjailija',
-                ],
-                'number_of_pages_median': 320,
-                'cover_i': 98765,
-                'isbn': [
-                  requestedIsbn,
-                ],
-              },
-            ],
-          });
-        }
+      expect(book, isNotNull);
 
-        throw StateError(
-          'Odottamaton palvelu: ${uri.host}',
-        );
-      },
-    );
-
-    final book = await service.findBookByIsbn(
-      requestedIsbn,
-    );
-
-    expect(book, isNotNull);
-
-    expect(
-      book!.coverUrl,
-      'https://covers.openlibrary.org/'
-      'b/id/98765-L.jpg',
-    );
-  },
-);
+      expect(
+        book!.coverUrl,
+        'https://covers.openlibrary.org/'
+        'b/id/98765-L.jpg',
+      );
+    });
 
     test(
       'Google Books ohittaa väärän painoksen ja valitsee täsmällisen ISBN-osuman',
@@ -417,10 +562,7 @@ http.Response _jsonResponse(Map<String, dynamic> data) {
   );
 }
 
-List<int> _gifHeader({
-  required int width,
-  required int height,
-}) {
+List<int> _gifHeader({required int width, required int height}) {
   return <int>[
     0x47,
     0x49,

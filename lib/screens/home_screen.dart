@@ -518,8 +518,15 @@ class _HomeScreenState extends State<HomeScreen> {
       title: foundBook.title,
       author: foundBook.author,
       pageCount: foundBook.pageCount,
+      publicationYear: foundBook.publicationYear,
+      publisher: foundBook.publisher,
+      binding: foundBook.binding,
       coverUrl: foundBook.coverUrl,
+      customCoverFileName: foundBook.customCoverFileName,
       spineColor: foundBook.spineColor,
+      readingStatus: foundBook.readingStatus,
+      rating: foundBook.rating,
+      notes: foundBook.notes,
     );
 
     setState(() {
@@ -972,6 +979,9 @@ class _HomeScreenState extends State<HomeScreen> {
       title: book.title,
       author: book.author,
       pageCount: book.pageCount,
+      publicationYear: book.publicationYear,
+      publisher: book.publisher,
+      binding: book.binding,
       coverUrl: book.coverUrl,
       customCoverFileName: book.customCoverFileName,
       spineColor: book.spineColor,
