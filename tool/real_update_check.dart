@@ -1,11 +1,13 @@
+import 'dart:io';
+
 import 'package:my_shelf/models/app_version.dart';
 import 'package:my_shelf/services/update_service.dart';
 
 Future<void> main() async {
   final service = UpdateService();
 
-  print('Testataan oikeaa GitHub Releases API:a...');
-  print('');
+  stdout.writeln('Testataan oikeaa GitHub Releases API:a...');
+  stdout.writeln('');
 
   await _runTest(
     service: service,
@@ -13,9 +15,9 @@ Future<void> main() async {
     expectUpdate: true,
   );
 
-  print('');
-  print('----------------------------------------');
-  print('');
+  stdout.writeln('');
+  stdout.writeln('----------------------------------------');
+  stdout.writeln('');
 
   await _runTest(
     service: service,
@@ -31,46 +33,48 @@ Future<void> _runTest({
 }) async {
   final version = AppVersion.parse(currentVersion);
 
-  print('Testin nykyinen versio: $version');
-  print('Odotus: ${expectUpdate ? 'päivitys löytyy' : 'päivitystä ei löydy'}');
+  stdout.writeln('Testin nykyinen versio: $version');
+  stdout.writeln(
+    'Odotus: ${expectUpdate ? 'päivitys löytyy' : 'päivitystä ei löydy'}',
+  );
 
   try {
     final release = await service.checkForUpdate(version);
 
     if (release == null) {
-      print('Päivitystä ei löytynyt.');
+      stdout.writeln('Päivitystä ei löytynyt.');
 
       if (expectUpdate) {
-        print('TESTI EPÄONNISTUI');
+        stdout.writeln('TESTI EPÄONNISTUI');
       } else {
-        print('TESTI ONNISTUI');
+        stdout.writeln('TESTI ONNISTUI');
       }
 
       return;
     }
 
-    print('Päivitys löytyi!');
-    print('Tagi: ${release.tagName}');
-    print('Versio: ${release.version}');
-    print('Nimi: ${release.name}');
-    print('Prerelease: ${release.prerelease}');
-    print('URL: ${release.htmlUrl}');
+    stdout.writeln('Päivitys löytyi!');
+    stdout.writeln('Tagi: ${release.tagName}');
+    stdout.writeln('Versio: ${release.version}');
+    stdout.writeln('Nimi: ${release.name}');
+    stdout.writeln('Prerelease: ${release.prerelease}');
+    stdout.writeln('URL: ${release.htmlUrl}');
 
     if (!expectUpdate) {
-      print('TESTI EPÄONNISTUI');
-      print('Päivitystä ei olisi pitänyt tarjota.');
+      stdout.writeln('TESTI EPÄONNISTUI');
+      stdout.writeln('Päivitystä ei olisi pitänyt tarjota.');
       return;
     }
 
     if (!release.version.isNewerThan(version)) {
-      print('TESTI EPÄONNISTUI');
-      print('Löydettyä versiota ei tunnistettu nykyistä uudemmaksi.');
+      stdout.writeln('TESTI EPÄONNISTUI');
+      stdout.writeln('Löydettyä versiota ei tunnistettu nykyistä uudemmaksi.');
       return;
     }
 
-    print('TESTI ONNISTUI');
+    stdout.writeln('TESTI ONNISTUI');
   } catch (error) {
-    print('TESTI EPÄONNISTUI');
-    print('Virhe: $error');
+    stdout.writeln('TESTI EPÄONNISTUI');
+    stdout.writeln('Virhe: $error');
   }
 }
