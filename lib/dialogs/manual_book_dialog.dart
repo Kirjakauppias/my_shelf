@@ -1,20 +1,89 @@
 import 'package:flutter/material.dart';
 
+// Tuodaan projektin oma Book-malli.
+// Book-luokka kuvaa sovelluksessa yksittäistä kirjaa ja sisältää
+// esimerkiksi kirjan nimen, kirjailijan, ISBN:n, sivumäärän,
+// selkämyksen värin ja lukutilan.
 import '../models/book.dart';
+
+// Tuodaan BookBinding-enum, jolla kuvataan kirjan sidosasua.
 import '../models/book_binding.dart';
+
+// Tuodaan ISBN-numeroihin liittyvät apufunktiot.
+// IsbnUtils-luokkaa käytetään alempana esim. ISBN:n
+// normalisointiin ja oikeellisuuden tarkistamiseen.
 import '../utils/isbn_utils.dart';
 
+/// [ManualBookDialog] on dialogi, jonka avulla käyttäjä voi joko:
+/// 1. lisätä kirjan käsin
+/// 2. muokata olemassa olevaa kirjaa.
+///
+/// [StatefulWidget] valitaan koska
+/// dialogin sisäinen tila voi muuttua käyttäjän toiminnan aikana.
+/// Esim:
+/// - valittu sidosasu voi vaihtua
+/// - valittu selkämyksen väri voi vaihtua.
 class ManualBookDialog extends StatefulWidget {
+  /// [initialIsbn] sisältää mahdollisen valmiiksi tunnetun ISBN:n.
+  /// [String]? = joko String-arvo tai null-arvo.
+  /// Tätä voidaan käyttää tilanteessa jossa ISBN on ensin skannattu,
+  /// mutta kirjan tietoja ei löytynyt automaattisesti.
   final String? initialIsbn;
+
+  /// [book] sisältää muokattavan kirjan.
+  /// Jos [book] == null:
+  /// dialogia käytetään uuden kirjan lisäämiseen.
+  /// Jos [book] != null:
+  /// dialogia käytetään olemassa olevan kirjan muokkaamiseen.
   final Book? book;
 
+  /// [ManualBookDialog]-luokan konstruktori.
+  ///
+  /// const mahdollistaa widgetin luomisen compile-time-vakiona silloin
+  /// kun sille annetut arvot ovat myös vakioita.
+  ///
+  /// {...} tarkoittaa nimettyjä parametreja.
+  ///
+  /// super.key välittää mahdollisen Key-arvon statefulWidgetin yläluokalle.
+  ///
+  /// this.initialIsbn tallentaa parametrin suoraan initialIsbn-kenttään.
+  /// this.book tallentaa parametrin suoraan book-kenttään.
+  ///
+  /// Kumpikaan parametri ei ole required, joten molemmat voivat jäädä
+  /// antamatta ja niiden arvoksi tulee silloin null.
   const ManualBookDialog({super.key, this.initialIsbn, this.book});
 
+  /// [StatefulWidget] tarvitsee erillisen [State]-olion.
+  ///
+  /// [createState] kutsutaan, kun Flutter luo tälle widgetille sen muuttuvaa
+  /// tilaa hallitsevan [State]-objektin.
+  ///
+  /// => on Dartin lyhyt yhden lausekkeen funktiosyntaksi.
+  ///
+  /// Tämä vastaa käytännössä:
+  ///
+  /// State[ManualBookDialog] createState() {
+  ///   return _ManualBookDialogState();
+  /// }
   @override
   State<ManualBookDialog> createState() => _ManualBookDialogState();
 }
 
+/// Tämä luokka sisältää [ManualBookDialog]-widgetin varsinaisen
+/// muuttuvan tilan ja käyttöliittymälogiikan.
+///
+/// Alaviiva luokan nimen alussa tekee luokasta Dartissa
+/// library-private-luokan eli sitä ei ole tarkoitettu käytettäväksi
+/// tämän Dart-kirjaston ulkopuolelta.
 class _ManualBookDialogState extends State<ManualBookDialog> {
+  /// Luodaan GlobalKey Form-widgettiä varten.
+  /// [GlobalKey<FormState>] antaa mahdollisuuden päästä myöhemmin
+  /// käsiksi Form-widgetin FormState-olioon.
+  ///
+  /// Sitä tarvitaan esimerkiksi lomakkeen kaikkien validatorien
+  /// suorittamiseen komennolla:
+  ///
+  /// _formKey.currentState!.validate()
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _titleController;

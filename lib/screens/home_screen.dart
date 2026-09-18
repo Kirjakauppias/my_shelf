@@ -19,6 +19,7 @@ import '../widgets/shelf_empty_state.dart';
 import '../models/library_view_settings.dart';
 import '../services/library_view_settings_service.dart';
 import '../services/portable_cover_restore_service.dart';
+import '../widgets/app_info_dialog.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -1677,6 +1678,15 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _openAppInfoDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AppInfoDialog();
+      },
+    );
+  }
+
   Widget _buildHeader() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -1766,6 +1776,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   case 'restore':
                     _restoreBackup();
                     break;
+
+                  case 'about':
+                    _openAppInfoDialog();
+                    break;
                 }
               },
               itemBuilder: (context) {
@@ -1808,6 +1822,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       contentPadding: EdgeInsets.zero,
                       leading: Icon(Icons.restore),
                       title: Text('Palauta varmuuskopio'),
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem<String>(
+                    value: 'about',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.info_outline),
+                      title: Text('Tietoja ja päivitykset'),
                     ),
                   ),
                 ];

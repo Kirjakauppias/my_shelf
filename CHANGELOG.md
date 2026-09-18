@@ -20,6 +20,11 @@
 
 ### Testattu
 
+- Päivitysten tarkistus varmennettu oikeaa GitHub Releases API:a vasten.
+- Sekä tilanteet “päivitys saatavilla” että “ei päivitystä saatavilla” testattu fyysisellä Android-laitteella.
+- Verkkovirheiden käsittely testattu oikealla laitteella.
+- Release-versiosta toiseen päivittäminen testattu versiosta v0.12.1-alpha versioon v0.13.0-alpha.
+- Varmennettu, että kirjat ja muu paikallinen sovellusdata säilyvät allekirjoitetun release-päivityksen yhteydessä.
 - Release-APK:n onnistunut muodostaminen
 - APK:n allekirjoituksen tarkistus `apksigner`-työkalulla
 - APK:n SHA-256-sertifikaattitunniste vastaa My Shelf -release-keystoren sertifikaattitunnistetta
