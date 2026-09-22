@@ -6,11 +6,7 @@ Sovelluksen keskiössä on virtuaalinen kirjahylly, jossa kirjat esitetään ole
 
 Kirjat voidaan järjestää omiin hyllyihin, lajitella, suodattaa ja asettaa haluttuun järjestykseen raahaamalla. Jokaiselle kirjalle voidaan tallentaa lukutila, tähtiarvosana, henkilökohtainen muistiinpano, käyttäjän itse valitsema kansikuva sekä bibliografisia tietoja, kuten julkaisuvuosi, kustantaja ja sidosasu.
 
-**## Nykyinen versio**
-
-**Kehitysversio: `v0.14.0-alpha`**
-
-**Viimeisin julkaistu versio: `v0.13.0-alpha`**
+**Nykyinen versio: `v0.14.0-alpha`**
 
 Tämä on sovelluksen kehitysversio. Sovelluksen keskeiset toiminnot ovat käytettävissä, mutta ominaisuudet, käyttöliittymä ja tietojen tallennustapa voivat vielä muuttua.
 
@@ -728,7 +724,7 @@ flutter test
 
 \`\`\`
 
-Version \`v0.14.0-alpha\` kehitysvaiheessa projektissa on **\*\*176 läpäisevää automaattista testiä\*\***.
+Projektissa on version `v0.14.0-alpha` julkaisuvaiheessa **176 läpäisevää automaattista testiä**.
 
 Testit kattavat muun muassa:
 

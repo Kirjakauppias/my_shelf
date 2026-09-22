@@ -1,5 +1,19 @@
 ## [Unreleased]
 
+### Suunnitteilla
+
+- Kirjahyllyjen järjestäminen
+- Lajittelu kirjan lisäysajan perusteella
+- Lukemisen aloitus- ja lopetuspäivämäärät
+- Lukemisen tilastot
+- Kirjan lainaustiedot
+- Automaattiset varmuuskopiot
+- Pilvisynkronointi
+- Käyttäjätilit
+
+
+## [0.14.0-alpha] - 2026-09-22
+
 ### Muutettu
 
 - Kirjan muokkaaminen on yhdistetty yhteen muokkauslomakkeeseen
@@ -36,17 +50,6 @@
 - Kirjan toimintovalikon toiminta puhelimen vaaka-asennossa
 - Flutter-analyysi
 - Kaikki 176 automaattista testiä
-
-### Suunnitteilla
-
-- Kirjahyllyjen järjestäminen
-- Lajittelu kirjan lisäysajan perusteella
-- Lukemisen aloitus- ja lopetuspäivämäärät
-- Lukemisen tilastot
-- Kirjan lainaustiedot
-- Automaattiset varmuuskopiot
-- Pilvisynkronointi
-- Käyttäjätilit
 
 
 ## [0.13.0-alpha] - 2026-09-18
