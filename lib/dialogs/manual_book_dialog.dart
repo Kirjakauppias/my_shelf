@@ -236,7 +236,7 @@ class _ManualBookDialogState extends State<ManualBookDialog> {
                 children: [
                   TextFormField(
                     controller: _titleController,
-                    autofocus: true,
+                    autofocus: widget.book == null,
                     textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
                       labelText: 'Kirjan nimi',
