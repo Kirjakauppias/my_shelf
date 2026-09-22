@@ -1048,51 +1048,59 @@ class _HomeScreenState extends State<HomeScreen> {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (bottomSheetContext) {
+        final screenHeight = MediaQuery.sizeOf(bottomSheetContext).height;
+
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: Text(
-                  book.title,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text(book.author),
-              ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('Muokkaa'),
-                onTap: () async {
-                  Navigator.of(bottomSheetContext).pop();
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: screenHeight * 0.9),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    title: Text(
+                      book.title,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(book.author),
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.info_outlined),
+                    title: const Text('Kirjan tiedot'),
+                    onTap: () async {
+                      Navigator.of(bottomSheetContext).pop();
 
-                  await _openBookDetails(book);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.drive_file_move_outlined),
-                title: const Text('Siirrä hyllyyn'),
-                enabled: shelves.length > 1,
-                onTap: shelves.length > 1
-                    ? () {
-                        Navigator.of(bottomSheetContext).pop();
+                      await _openBookDetails(book);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.drive_file_move_outlined),
+                    title: const Text('Siirrä hyllyyn'),
+                    enabled: shelves.length > 1,
+                    onTap: shelves.length > 1
+                        ? () {
+                            Navigator.of(bottomSheetContext).pop();
 
-                        _openMoveBookDialog(book);
-                      }
-                    : null,
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete_outline),
-                title: const Text('Poista'),
-                onTap: () {
-                  Navigator.of(bottomSheetContext).pop();
+                            _openMoveBookDialog(book);
+                          }
+                        : null,
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.delete_outline),
+                    title: const Text('Poista'),
+                    onTap: () {
+                      Navigator.of(bottomSheetContext).pop();
 
-                  _deleteBook(book);
-                },
+                      _deleteBook(book);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                ],
               ),
-              const SizedBox(height: 8),
-            ],
+            ),
           ),
         );
       },
