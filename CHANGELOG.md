@@ -1,5 +1,42 @@
 ## [Unreleased]
 
+### Muutettu
+
+- Kirjan muokkaaminen on yhdistetty yhteen muokkauslomakkeeseen
+- Kirjan nimi, kirjailija, ISBN, sivumäärä, julkaisuvuosi, kustantaja, sidosasu, selkämyksen väri, lukutila, arvosana ja muistiinpano voidaan nyt muuttaa ennen yhtä yhteistä tallennusta
+- Kirjan tiedot tallennetaan vasta, kun käyttäjä valitsee `Tallenna muutokset`
+- `Peruuta` sulkee muokkauslomakkeen tallentamatta tehtyjä muutoksia
+- Lukutilaa, arvosanaa ja muistiinpanoa ei enää muokata erikseen kirjan tietosivulta
+- Kirjan toimintovalikon `Muokkaa`-toiminto nimettiin selkeämmin `Kirjan tiedot` -toiminnoksi
+- Kirjan toimintovalikon kynäkuvake vaihdettiin tietoja kuvaavaan kuvakkeeseen
+- Muokkauslomake ei enää aktivoi kirjan nimikenttää automaattisesti olemassa olevaa kirjaa muokattaessa
+- Uutta kirjaa käsin lisättäessä kirjan nimikenttä voidaan edelleen aktivoida automaattisesti
+- Pitkä kirjan muokkauslomake käyttää rajattua ja vieritettävää sisältöaluetta
+
+### Korjattu
+
+- Korjattu käytettävyysongelma, jossa yhden lukutilan, arvosanan tai muistiinpanon muuttaminen sulki kirjan tietonäkymän heti muutoksen jälkeen
+- ISBN-13-validointi edellyttää nyt oikean tarkistusnumeron lisäksi `978`- tai `979`-etuliitettä
+- Estetty rakenteellisesti virheellisten 13-numeroisten tunnusten, kuten `0000000000000`, hyväksyminen ISBN-tunnuksina
+- ISBN voidaan edelleen jättää kokonaan tyhjäksi
+- Korjattu kirjan toimintovalikon `RenderFlex`-ylivuoto puhelimen vaakasuunnassa
+- Kirjan toimintovalikko on nyt tarvittaessa vieritettävä pienellä pystysuuntaisella näyttötilalla
+
+### Testattu
+
+- Useiden kirjan tietojen muuttaminen samalla muokkauskerralla
+- Nimen, lukutilan, arvosanan ja muistiinpanon muuttaminen ennen yhtä yhteistä tallennusta
+- Muuttamattomien kirjan tietojen säilyminen muokkauksen yhteydessä
+- Muokkausten hylkääminen `Peruuta`-toiminnolla
+- Kelvollisen ISBN-13-tunnuksen hyväksyminen
+- Muun kuin `978`- tai `979`-alkuisen 13-numeroisen tunnuksen hylkääminen
+- ISBN-kentän jättäminen tyhjäksi
+- Yhtenäinen kirjan muokkaus oikealla Android-laitteella
+- Muokkauslomakkeen toiminta ilman automaattisesti avautuvaa näppäimistöä
+- Kirjan toimintovalikon toiminta puhelimen vaaka-asennossa
+- Flutter-analyysi
+- Kaikki 176 automaattista testiä
+
 ### Suunnitteilla
 
 - Kirjahyllyjen järjestäminen
@@ -10,6 +47,62 @@
 - Automaattiset varmuuskopiot
 - Pilvisynkronointi
 - Käyttäjätilit
+
+
+## [0.13.0-alpha] - 2026-09-18
+
+### Lisätty
+
+- Sovelluksen oman version automaattinen lukeminen `package_info_plus`-paketilla
+- `AppVersion` sovellusversioiden jäsentämiseen ja semanttiseen vertailuun
+- GitHub Releases API:in perustuva päivitysten tarkistus
+- `GitHubRelease` GitHub-julkaisujen tietomalliksi
+- `UpdateService` saatavilla olevien päivitysten hakemiseen
+- `InstalledAppVersionService` asennetun sovellusversion lukemiseen
+- `AppUpdateChecker` asennetun version ja GitHub-julkaisujen vertailuun
+- `AppInfoDialog` sovelluksen version ja päivitystietojen näyttämiseen
+- `Tietoja ja päivitykset` -toiminto sovelluksen päävalikkoon
+- `Tarkista päivitykset` -painike
+- Ilmoitus, kun käyttäjällä on jo uusin saatavilla oleva versio
+- `Uusi versio saatavilla` -dialogi
+- Linkki uuden version GitHub Release -sivulle
+- Linkki My Shelf -projektin GitHub-sivulle
+- Linkki GitHub Issues -sivulle palautteen antamista varten
+- `url_launcher` ulkoisten GitHub-linkkien avaamiseen
+- `tool/real_update_check.dart` oikean GitHub Releases API:n käsin testaamiseen
+
+### Muutettu
+
+- Sovellus tunnistaa päivityksen versionumeroiden perusteella eikä luota GitHub-julkaisujen palautusjärjestykseen
+- Draft-julkaisut ja virheelliset versionumerotagit ohitetaan päivityshaussa
+- Päivitysten tarkistus käsittelee sekä alpha- että vakaat versiot
+- GitHubista löytyvä vanhempi versio ei aiheuta virheellistä päivitysilmoitusta
+
+### Korjattu
+
+- Päivitysten tarkistuksen verkkovirheet ja aikakatkaisut käsitellään ilman sovelluksen kaatumista
+- Yksittäinen virheellinen GitHub-julkaisu ei estä muiden julkaisujen tarkistamista
+
+### Testattu
+
+- Sovellusversioiden jäsentäminen ja vertailu
+- GitHub-tagien `v`-etuliitteen käsittely
+- Alpha-versioiden ja vakaiden versioiden vertailu
+- Asennetun sovellusversion ja build-numeron lukeminen
+- GitHub Releases API -vastausten käsittely
+- Draft-julkaisujen ohittaminen
+- Virheellisten versionumerotagien ohittaminen
+- Päivityksen löytyminen ja päivityksen puuttuminen
+- Päivitysten tarkistus oikeaa GitHub Releases API:a vasten
+- Sekä `päivitys saatavilla` että `ei päivitystä saatavilla` -tilanteet fyysisellä Android-laitteella
+- Verkkovirheiden käsittely oikealla Android-laitteella
+- GitHub-projekti- ja palautelinkkien avaaminen oikealla laitteella
+- Release-versiosta toiseen päivittäminen versiosta `v0.12.1-alpha` versioon `v0.13.0-alpha`
+- Kirjojen ja muun paikallisen sovellusdatan säilyminen allekirjoitetussa release-päivityksessä
+- APK:n allekirjoitus samalla pysyvällä My Shelf -release-avaimella kuin `v0.12.1-alpha`
+- Flutter-analyysi
+- Kaikki 172 automaattista testiä
+
 
 ## [0.12.1-alpha] - 2026-08-25
 
