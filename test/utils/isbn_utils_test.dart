@@ -25,5 +25,15 @@ void main() {
         isTrue,
       );
     });
+
+    test('hyväksyy kelvollisen ISBN-13-tunnuksen', () {
+      expect(IsbnUtils.isValid('9789510507339'), isTrue);
+    });
+
+    test('hylkää ISBN-13-tunnuksen ilman 978- tai 979-etuliitettä', () {
+      expect(IsbnUtils.isValid('0000000000000'), isFalse);
+
+      expect(IsbnUtils.isValid('1234567890128'), isFalse);
+    });
   });
 }

@@ -95,6 +95,11 @@ class _ManualBookDialogState extends State<ManualBookDialog> {
 
   BookBinding _selectedBinding = BookBinding.unknown;
 
+  ReadingStatus _selectedReadingStatus = ReadingStatus.unread;
+  int? _selectedRating;
+
+  late final TextEditingController _notesController;
+
   Color _selectedColor = const Color(0xFF335C67);
 
   static const List<Color> _spineColors = [
@@ -136,6 +141,13 @@ class _ManualBookDialogState extends State<ManualBookDialog> {
 
     _selectedBinding = existingBook?.binding ?? BookBinding.unknown;
 
+    _selectedReadingStatus =
+        existingBook?.readingStatus ?? ReadingStatus.unread;
+
+    _selectedRating = existingBook?.rating;
+
+    _notesController = TextEditingController(text: existingBook?.notes ?? '');
+
     if (existingBook != null) {
       _selectedColor = existingBook.spineColor;
     }
@@ -149,6 +161,7 @@ class _ManualBookDialogState extends State<ManualBookDialog> {
     _pageCountController.dispose();
     _publicationYearController.dispose();
     _publisherController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -197,9 +210,9 @@ class _ManualBookDialogState extends State<ManualBookDialog> {
       coverUrl: widget.book?.coverUrl,
       customCoverFileName: widget.book?.customCoverFileName,
       spineColor: _selectedColor,
-      readingStatus: widget.book?.readingStatus ?? ReadingStatus.unread,
-      rating: widget.book?.rating,
-      notes: widget.book?.notes ?? '',
+      readingStatus: _selectedReadingStatus,
+      rating: _selectedRating,
+      notes: _notesController.text.trim(),
     );
 
     Navigator.of(context).pop(book);
@@ -207,184 +220,272 @@ class _ManualBookDialogState extends State<ManualBookDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.sizeOf(context).height;
+
     return AlertDialog(
       title: Text(widget.book == null ? 'Lisää kirja käsin' : 'Muokkaa kirjaa'),
       content: SizedBox(
         width: 420,
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _titleController,
-                  autofocus: true,
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Kirjan nimi',
-                    prefixIcon: Icon(Icons.menu_book),
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Syötä kirjan nimi.';
-                    }
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: screenHeight * 0.65),
+          child: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: _titleController,
+                    autofocus: true,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Kirjan nimi',
+                      prefixIcon: Icon(Icons.menu_book),
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Syötä kirjan nimi.';
+                      }
 
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: _authorController,
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Kirjailija',
-                    prefixIcon: Icon(Icons.person_outline),
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Syötä kirjailijan nimi.';
-                    }
-
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: _isbnController,
-                  keyboardType: TextInputType.number,
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'ISBN (valinnainen)',
-                    prefixIcon: Icon(Icons.numbers),
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    final normalized = IsbnUtils.normalize(value?.trim() ?? '');
-
-                    if (normalized.isEmpty) {
                       return null;
-                    }
-
-                    if (!IsbnUtils.isValid(normalized)) {
-                      return 'Syötä kelvollinen ISBN-10 tai ISBN-13.';
-                    }
-
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: _pageCountController,
-                  keyboardType: TextInputType.number,
-                  textInputAction: TextInputAction.next,
-                  //onFieldSubmitted: (_) => _submit(),
-                  decoration: const InputDecoration(
-                    labelText: 'Sivumäärä',
-                    prefixIcon: Icon(Icons.format_list_numbered),
-                    border: OutlineInputBorder(),
+                    },
                   ),
-                  validator: (value) {
-                    final pageCount = int.tryParse(value?.trim() ?? '');
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _authorController,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Kirjailija',
+                      prefixIcon: Icon(Icons.person_outline),
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Syötä kirjailijan nimi.';
+                      }
 
-                    if (pageCount == null || pageCount <= 0) {
-                      return 'Syötä kelvollinen sivumäärä.';
-                    }
-
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: _publicationYearController,
-                  keyboardType: TextInputType.number,
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Julkaisuvuosi (valinnainen)',
-                    prefixIcon: Icon(Icons.calendar_today_outlined),
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    final text = value?.trim() ?? '';
-
-                    if (text.isEmpty) {
                       return null;
-                    }
-
-                    final year = int.tryParse(text);
-
-                    if (year == null || year < 1 || year > 9999) {
-                      return 'Syötä kelvollinen julkaisuvuosi.';
-                    }
-
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: _publisherController,
-                  textInputAction: TextInputAction.done,
-                  decoration: const InputDecoration(
-                    labelText: 'Kustantaja (valinnainen)',
-                    prefixIcon: Icon(Icons.business_outlined),
-                    border: OutlineInputBorder(),
+                    },
                   ),
-                ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _isbnController,
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'ISBN (valinnainen)',
+                      prefixIcon: Icon(Icons.numbers),
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      final normalized = IsbnUtils.normalize(
+                        value?.trim() ?? '',
+                      );
 
-                const SizedBox(height: 14),
-                DropdownButtonFormField<BookBinding>(
-                  initialValue: _selectedBinding,
-                  decoration: const InputDecoration(
-                    labelText: 'Sidosasu',
-                    prefixIcon: Icon(Icons.auto_stories_outlined),
-                    border: OutlineInputBorder(),
-                  ),
-                  items: BookBinding.values.map((binding) {
-                    return DropdownMenuItem<BookBinding>(
-                      value: binding,
-                      child: Text(binding.label),
-                    );
-                  }).toList(),
-                  onChanged: (binding) {
-                    if (binding == null) {
-                      return;
-                    }
+                      if (normalized.isEmpty) {
+                        return null;
+                      }
 
-                    setState(() {
-                      _selectedBinding = binding;
-                    });
-                  },
-                ),
-                const SizedBox(height: 20),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Selkämyksen väri',
-                    style: Theme.of(context).textTheme.titleSmall,
+                      if (normalized.length != 10 && normalized.length != 13) {
+                        return 'ISBN-numerossa pitää olla 10 tai 13 merkkiä.';
+                      }
+
+                      if (!IsbnUtils.isValid(normalized)) {
+                        return 'ISBN:n tarkistusnumero ei täsmää.';
+                      }
+
+                      return null;
+                    },
                   ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    for (final color in _spineColors)
-                      _ColorChoice(
-                        color: color,
-                        isSelected: color == _selectedColor,
-                        onSelected: () {
-                          setState(() {
-                            _selectedColor = color;
-                          });
-                        },
-                      ),
-                  ],
-                ),
-              ],
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _pageCountController,
+                    keyboardType: TextInputType.text,
+                    textInputAction: TextInputAction.next,
+                    //onFieldSubmitted: (_) => _submit(),
+                    decoration: const InputDecoration(
+                      labelText: 'Sivumäärä',
+                      prefixIcon: Icon(Icons.format_list_numbered),
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      final pageCount = int.tryParse(value?.trim() ?? '');
+
+                      if (pageCount == null || pageCount <= 0) {
+                        return 'Syötä kelvollinen sivumäärä.';
+                      }
+
+                      return null;
+                    },
+                  ),
+
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _publicationYearController,
+                    keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Julkaisuvuosi (valinnainen)',
+                      prefixIcon: Icon(Icons.calendar_today_outlined),
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      final text = value?.trim() ?? '';
+
+                      if (text.isEmpty) {
+                        return null;
+                      }
+
+                      final year = int.tryParse(text);
+
+                      if (year == null || year < 1 || year > 9999) {
+                        return 'Syötä kelvollinen julkaisuvuosi.';
+                      }
+
+                      return null;
+                    },
+                  ),
+
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _publisherController,
+                    textInputAction: TextInputAction.done,
+                    decoration: const InputDecoration(
+                      labelText: 'Kustantaja (valinnainen)',
+                      prefixIcon: Icon(Icons.business_outlined),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
+                  DropdownButtonFormField<BookBinding>(
+                    initialValue: _selectedBinding,
+                    decoration: const InputDecoration(
+                      labelText: 'Sidosasu',
+                      prefixIcon: Icon(Icons.auto_stories_outlined),
+                      border: OutlineInputBorder(),
+                    ),
+                    items: BookBinding.values.map((binding) {
+                      return DropdownMenuItem<BookBinding>(
+                        value: binding,
+                        child: Text(binding.label),
+                      );
+                    }).toList(),
+                    onChanged: (binding) {
+                      if (binding == null) {
+                        return;
+                      }
+
+                      setState(() {
+                        _selectedBinding = binding;
+                      });
+                    },
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  DropdownButtonFormField<ReadingStatus>(
+                    initialValue: _selectedReadingStatus,
+                    decoration: const InputDecoration(
+                      labelText: 'Lukutila',
+                      prefixIcon: Icon(Icons.menu_book_outlined),
+                      border: OutlineInputBorder(),
+                    ),
+                    items: ReadingStatus.values.map((status) {
+                      return DropdownMenuItem<ReadingStatus>(
+                        value: status,
+                        child: Text(status.label),
+                      );
+                    }).toList(),
+                    onChanged: (status) {
+                      if (status == null) {
+                        return;
+                      }
+
+                      setState(() {
+                        _selectedReadingStatus = status;
+                      });
+                    },
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Arvosana',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Row(
+                    children: [
+                      for (var rating = 1; rating <= 5; rating++)
+                        IconButton(
+                          tooltip: rating == 1 ? '1 tähti' : '$rating tähteä',
+                          onPressed: () {
+                            setState(() {
+                              _selectedRating = _selectedRating == rating
+                                  ? null
+                                  : rating;
+                            });
+                          },
+                          icon: Icon(
+                            _selectedRating != null &&
+                                    rating <= _selectedRating!
+                                ? Icons.star
+                                : Icons.star_border,
+                          ),
+                        ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  TextFormField(
+                    controller: _notesController,
+                    minLines: 4,
+                    maxLines: 8,
+                    maxLength: 2000,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: const InputDecoration(
+                      labelText: 'Muistiinpano',
+                      hintText: 'Kirjoita oma muistiinpano kirjasta...',
+                      prefixIcon: Icon(Icons.notes_outlined),
+                      border: OutlineInputBorder(),
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Selkämyksen väri',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      for (final color in _spineColors)
+                        _ColorChoice(
+                          color: color,
+                          isSelected: color == _selectedColor,
+                          onSelected: () {
+                            setState(() {
+                              _selectedColor = color;
+                            });
+                          },
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

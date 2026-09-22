@@ -53,110 +53,6 @@ class BookDetailsScreen extends StatelessWidget {
     return '$rating / 5';
   }
 
-  Future<void> _changeRating(BuildContext context) async {
-    final selectedRating = await showDialog<int>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Anna arvosana'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                book.rating == null
-                    ? 'Kirjaa ei ole vielä arvioitu.'
-                    : 'Nykyinen arvio: ${book.rating} / 5',
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 4,
-                children: List.generate(5, (index) {
-                  final rating = index + 1;
-
-                  final isFilled =
-                      book.rating != null && rating <= book.rating!;
-
-                  return IconButton(
-                    tooltip: rating == 1 ? '1 tähti' : '$rating tähteä',
-                    onPressed: () {
-                      Navigator.of(dialogContext).pop(rating);
-                    },
-                    icon: Icon(isFilled ? Icons.star : Icons.star_border),
-                  );
-                }),
-              ),
-            ],
-          ),
-          actions: [
-            if (book.rating != null)
-              TextButton.icon(
-                onPressed: () {
-                  // Arvo 0 tarkoittaa arvosanan poistamista.
-                  Navigator.of(dialogContext).pop(0);
-                },
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('Poista arvio'),
-              ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-              child: const Text('Peruuta'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (selectedRating == null || !context.mounted) {
-      return;
-    }
-
-    if (selectedRating == book.rating) {
-      return;
-    }
-
-    final updatedBook = selectedRating == 0
-        ? book.copyWith(clearRating: true)
-        : book.copyWith(rating: selectedRating);
-
-    _closeWithResult(context, BookDetailsResult.updated(updatedBook));
-  }
-
-  Future<void> _changeReadingStatus(BuildContext context) async {
-    final selectedStatus = await showDialog<ReadingStatus>(
-      context: context,
-      builder: (dialogContext) {
-        return SimpleDialog(
-          title: const Text('Valitse lukutila'),
-          children: ReadingStatus.values.map((status) {
-            final isSelected = status == book.readingStatus;
-
-            return ListTile(
-              leading: Icon(_readingStatusIcon(status)),
-              title: Text(status.label),
-              trailing: isSelected ? const Icon(Icons.check) : null,
-              onTap: () {
-                Navigator.of(dialogContext).pop(status);
-              },
-            );
-          }).toList(),
-        );
-      },
-    );
-
-    if (selectedStatus == null ||
-        selectedStatus == book.readingStatus ||
-        !context.mounted) {
-      return;
-    }
-
-    final updatedBook = book.copyWith(readingStatus: selectedStatus);
-
-    _closeWithResult(context, BookDetailsResult.updated(updatedBook));
-  }
-
   Future<void> _confirmDelete(BuildContext context) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
@@ -193,63 +89,6 @@ class BookDetailsScreen extends StatelessWidget {
     }
 
     _closeWithResult(context, const BookDetailsResult.deleted());
-  }
-
-  Future<void> _editNotes(BuildContext context) async {
-    var draftNotes = book.notes;
-
-    final updatedNotes = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(
-            book.notes.trim().isEmpty
-                ? 'Lisää muistiinpano'
-                : 'Muokkaa muistiinpanoa',
-          ),
-          content: TextFormField(
-            initialValue: book.notes,
-            autofocus: true,
-            minLines: 4,
-            maxLines: 8,
-            maxLength: 2000,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
-              hintText: 'Kirjoita oma muistiinpano kirjasta...',
-              border: OutlineInputBorder(),
-              alignLabelWithHint: true,
-            ),
-            onChanged: (value) {
-              draftNotes = value;
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-              child: const Text('Peruuta'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop(draftNotes.trim());
-              },
-              child: const Text('Tallenna'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (updatedNotes == null ||
-        updatedNotes == book.notes ||
-        !context.mounted) {
-      return;
-    }
-
-    final updatedBook = book.copyWith(notes: updatedNotes);
-
-    _closeWithResult(context, BookDetailsResult.updated(updatedBook));
   }
 
   Future<void> _changeCover(BuildContext context) async {
@@ -459,9 +298,6 @@ class BookDetailsScreen extends StatelessWidget {
                       icon: _readingStatusIcon(book.readingStatus),
                       label: 'Lukutila',
                       value: book.readingStatus.label,
-                      onTap: () {
-                        _changeReadingStatus(context);
-                      },
                     ),
                     const Divider(height: 1),
                     _BookDetailRow(
@@ -470,9 +306,6 @@ class BookDetailsScreen extends StatelessWidget {
                           : Icons.star,
                       label: 'Arvosana',
                       value: _ratingLabel(book.rating),
-                      onTap: () {
-                        _changeRating(context);
-                      },
                     ),
                   ],
                 ),
@@ -560,50 +393,39 @@ class BookDetailsScreen extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       margin: EdgeInsets.zero,
-      child: InkWell(
-        onTap: () {
-          _editNotes(context);
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.notes_outlined, color: colorScheme.primary),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Oma muistiinpano',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.notes_outlined, color: colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Oma muistiinpano',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                hasNotes
-                    ? book.notes
-                    : 'Napauta lisätäksesi oman muistiinpanon kirjasta.',
-                maxLines: hasNotes ? 6 : 3,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: hasNotes
-                      ? colorScheme.onSurface
-                      : colorScheme.onSurfaceVariant,
-                  fontStyle: hasNotes ? FontStyle.normal : FontStyle.italic,
-                  height: 1.4,
                 ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              hasNotes ? book.notes : 'Ei muistiinpanoa.',
+              maxLines: hasNotes ? 6 : 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: hasNotes
+                    ? colorScheme.onSurface
+                    : colorScheme.onSurfaceVariant,
+                fontStyle: hasNotes ? FontStyle.normal : FontStyle.italic,
+                height: 1.4,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -708,13 +530,11 @@ class _BookDetailRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  final VoidCallback? onTap;
 
   const _BookDetailRow({
     required this.icon,
     required this.label,
     required this.value,
-    this.onTap,
   });
 
   @override
@@ -758,16 +578,10 @@ class _BookDetailRow extends StatelessWidget {
               ],
             ),
           ),
-          if (onTap != null)
-            Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant),
         ],
       ),
     );
 
-    if (onTap == null) {
-      return content;
-    }
-
-    return InkWell(onTap: onTap, child: content);
+    return content;
   }
 }

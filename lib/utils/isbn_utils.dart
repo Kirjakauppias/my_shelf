@@ -87,7 +87,13 @@ class IsbnUtils {
   }
 
   static bool _isValidIsbn13(String isbn) {
+    // ISBN-13 sisältää täsmälleen 13 numeroa.
     if (!RegExp(r'^\d{13}$').hasMatch(isbn)) {
+      return false;
+    }
+
+    // ISBN-13 käyttää Bookland-etuliitettä 978 tai 979.
+    if (!isbn.startsWith('978') && !isbn.startsWith('979')) {
       return false;
     }
 
@@ -95,10 +101,12 @@ class IsbnUtils {
 
     for (var index = 0; index < 12; index++) {
       final digit = int.parse(isbn[index]);
+
       sum += index.isEven ? digit : digit * 3;
     }
 
     final expectedCheckDigit = (10 - (sum % 10)) % 10;
+
     final actualCheckDigit = int.parse(isbn[12]);
 
     return expectedCheckDigit == actualCheckDigit;
