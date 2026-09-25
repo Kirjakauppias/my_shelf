@@ -6,7 +6,7 @@ import 'package:my_shelf/theme/shelf_theme_palette.dart';
 void main() {
   group('ShelfThemePalette', () {
     test('classic-teemalla on odotettu perusväri', () {
-      expect(ShelfTheme.classic.palette.board, const Color(0xFF9B633D));
+      expect(ShelfTheme.classic.palette.board, const Color(0xFF926346));
     });
 
     test('dark-teeman nimikyltin teksti on valkoinen', () {

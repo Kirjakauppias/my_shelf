@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/book.dart';
 import 'book_cover_card.dart';
 import 'shelf_board.dart';
+import '../models/shelf.dart';
+import '../theme/shelf_theme_palette.dart';
 
 class BookCoverShelf extends StatelessWidget {
   final List<Book> books;
@@ -11,6 +13,8 @@ class BookCoverShelf extends StatelessWidget {
   final bool canReorder;
   final bool showReadingStatusBadges;
   final bool isFullscreen;
+
+  final ShelfTheme theme;
 
   final void Function(Book draggedBook) onMoveToEnd;
 
@@ -26,6 +30,7 @@ class BookCoverShelf extends StatelessWidget {
     required this.onMoveToEnd,
     required this.onReorder,
     this.isFullscreen = false,
+    this.theme = ShelfTheme.classic,
   });
 
   static const double _coverAspectRatio = 0.67;
@@ -69,19 +74,24 @@ class BookCoverShelf extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final orientation = MediaQuery.of(context).orientation;
+    final palette = theme.palette;
 
     return Container(
       width: double.infinity,
       padding: _shelfPadding(orientation),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFEBD8BC), Color(0xFFDFC19B), Color(0xFFD3AD80)],
-          stops: [0, 0.55, 1],
+          colors: [
+            palette.coverBackgroundTop,
+            palette.coverBackgroundMiddle,
+            palette.coverBackgroundBottom,
+          ],
+          stops: const [0, 0.55, 1],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF805033), width: 3),
+        border: Border.all(color: palette.coverFrameBorder, width: 3),
         boxShadow: const [
           BoxShadow(
             color: Color(0x26000000),
@@ -195,11 +205,12 @@ class BookCoverShelf extends StatelessWidget {
                       builder: (context, candidateData, rejectedData) {
                         return ShelfBoard(
                           highlighted: candidateData.isNotEmpty,
+                          theme: theme,
                         );
                       },
                     )
                   else
-                    const ShelfBoard(),
+                    ShelfBoard(theme: theme),
                 ],
               );
             },

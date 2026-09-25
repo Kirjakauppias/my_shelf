@@ -2064,6 +2064,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case BookViewMode.covers:
         return BookCoverShelf(
           books: visibleBooks,
+          theme: selectedShelf.theme,
           canReorder: _canReorderBooks,
           showReadingStatusBadges: _showReadingStatusBadges,
           isFullscreen: _isShelfFullscreen,
@@ -2075,6 +2076,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case BookViewMode.spines:
         return Bookshelf(
           books: visibleBooks,
+          theme: selectedShelf.theme,
           showReadingStatusBadges: _showReadingStatusBadges,
           onReorder: _canReorderBooks ? _reorderVisibleBooks : _disabledReorder,
           onMoveToEnd: _canReorderBooks ? _moveBookToEnd : _disabledMoveToEnd,

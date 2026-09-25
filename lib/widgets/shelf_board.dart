@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
 
+import '../models/shelf.dart';
+import '../theme/shelf_theme_palette.dart';
+
 class ShelfBoard extends StatelessWidget {
   final bool highlighted;
+  final ShelfTheme theme;
 
-  const ShelfBoard({super.key, this.highlighted = false});
+  const ShelfBoard({
+    super.key,
+    this.highlighted = false,
+    this.theme = ShelfTheme.classic,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final palette = theme.palette;
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
@@ -18,14 +28,14 @@ class ShelfBoard extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: highlighted
-              ? const [Color(0xFFC77C4C), Color(0xFF8E4F2E)]
-              : const [Color(0xFF926346), Color(0xFF5C3522)],
+              ? [palette.highlightedBoard, palette.highlightedBoardEdge]
+              : [palette.board, palette.boardEdge],
         ),
         borderRadius: BorderRadius.circular(3),
         border: Border.all(
           color: highlighted
-              ? const Color(0xFFEFB789)
-              : const Color(0xFF4A2818),
+              ? palette.highlightedBoardBorder
+              : palette.boardBorder,
         ),
         boxShadow: const [
           BoxShadow(
@@ -39,9 +49,9 @@ class ShelfBoard extends StatelessWidget {
         alignment: Alignment.bottomCenter,
         child: Container(
           height: 2,
-          decoration: const BoxDecoration(
-            color: Color(0xFF3E2114),
-            borderRadius: BorderRadius.only(
+          decoration: BoxDecoration(
+            color: palette.boardLip,
+            borderRadius: const BorderRadius.only(
               bottomLeft: Radius.circular(2),
               bottomRight: Radius.circular(2),
             ),
