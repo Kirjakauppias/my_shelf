@@ -37,4 +37,63 @@ void main() {
       expect(firstShelf.hashCode, secondShelf.hashCode);
     });
   });
+
+  test('uuden hyllyn oletusteema on classic', () {
+    const shelf = Shelf(id: '1', name: 'Fantasia', position: 0);
+
+    expect(shelf.theme, ShelfTheme.classic);
+  });
+
+  test('hyllyn teema tallennetaan JSON-muotoon', () {
+    const shelf = Shelf(
+      id: '1',
+      name: 'Fantasia',
+      position: 0,
+      theme: ShelfTheme.walnut,
+    );
+
+    final json = shelf.toJson();
+
+    expect(json['theme'], 'walnut');
+  });
+
+  test('hyllyn teema palautetaan JSON-datasta', () {
+    final shelf = Shelf.fromJson({
+      'id': '1',
+      'name': 'Fantasia',
+      'position': 0,
+      'theme': 'dark',
+    });
+
+    expect(shelf.theme, ShelfTheme.dark);
+  });
+
+  test('vanha JSON ilman teemaa käyttää classic-teemaa', () {
+    final shelf = Shelf.fromJson({
+      'id': '1',
+      'name': 'Fantasia',
+      'position': 0,
+    });
+
+    expect(shelf.theme, ShelfTheme.classic);
+  });
+
+  test('tuntematon teema palautuu classic-teemaksi', () {
+    final shelf = Shelf.fromJson({
+      'id': '1',
+      'name': 'Fantasia',
+      'position': 0,
+      'theme': 'unknown-theme',
+    });
+
+    expect(shelf.theme, ShelfTheme.classic);
+  });
+
+  test('copyWith voi vaihtaa hyllyn teeman', () {
+    const shelf = Shelf(id: '1', name: 'Fantasia', position: 0);
+
+    final updatedShelf = shelf.copyWith(theme: ShelfTheme.oak);
+
+    expect(updatedShelf.theme, ShelfTheme.oak);
+  });
 }
