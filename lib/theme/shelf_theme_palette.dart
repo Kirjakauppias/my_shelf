@@ -26,6 +26,8 @@ class ShelfThemePalette {
   final Color coverBackgroundBottom;
   final Color coverFrameBorder;
 
+  final Color nameplateBorder;
+
   const ShelfThemePalette({
     required this.backgroundTop,
     required this.backgroundBottom,
@@ -43,6 +45,7 @@ class ShelfThemePalette {
     required this.coverBackgroundMiddle,
     required this.coverBackgroundBottom,
     required this.coverFrameBorder,
+    required this.nameplateBorder,
   });
 }
 
@@ -69,6 +72,7 @@ extension ShelfThemePaletteExtension on ShelfTheme {
           coverBackgroundMiddle: Color(0xFFDFC19B),
           coverBackgroundBottom: Color(0xFFD3AD80),
           coverFrameBorder: Color(0xFF805033),
+          nameplateBorder: Color(0xFF7A482A),
         );
 
       case ShelfTheme.light:
@@ -89,6 +93,7 @@ extension ShelfThemePaletteExtension on ShelfTheme {
           coverBackgroundMiddle: Color(0xFFEBD4B6),
           coverBackgroundBottom: Color(0xFFD9B98E),
           coverFrameBorder: Color(0xFFB8895D),
+          nameplateBorder: Color(0xFFB8895D),
         );
 
       case ShelfTheme.oak:
@@ -109,6 +114,7 @@ extension ShelfThemePaletteExtension on ShelfTheme {
           coverBackgroundMiddle: Color(0xFFD7A65F),
           coverBackgroundBottom: Color(0xFFBA7E3D),
           coverFrameBorder: Color(0xFF8C5428),
+          nameplateBorder: Color(0xFF8C5428),
         );
 
       case ShelfTheme.walnut:
@@ -129,6 +135,7 @@ extension ShelfThemePaletteExtension on ShelfTheme {
           coverBackgroundMiddle: Color(0xFF684936),
           coverBackgroundBottom: Color(0xFF493124),
           coverFrameBorder: Color(0xFF352219),
+          nameplateBorder: Color(0xFF432B20),
         );
 
       case ShelfTheme.dark:
@@ -149,6 +156,7 @@ extension ShelfThemePaletteExtension on ShelfTheme {
           coverBackgroundMiddle: Color(0xFF323232),
           coverBackgroundBottom: Color(0xFF202020),
           coverFrameBorder: Color(0xFF121212),
+          nameplateBorder: Color(0xFF202020),
         );
 
       case ShelfTheme.gray:
@@ -169,6 +177,7 @@ extension ShelfThemePaletteExtension on ShelfTheme {
           coverBackgroundMiddle: Color(0xFFA39E97),
           coverBackgroundBottom: Color(0xFF817C76),
           coverFrameBorder: Color(0xFF5D5954),
+          nameplateBorder: Color(0xFF66615B),
         );
     }
   }

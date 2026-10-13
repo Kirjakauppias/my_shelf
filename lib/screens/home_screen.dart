@@ -21,6 +21,7 @@ import '../services/library_view_settings_service.dart';
 import '../services/portable_cover_restore_service.dart';
 import '../widgets/app_info_dialog.dart';
 import '../dialogs/shelf_appearance_dialog.dart';
+import '../theme/shelf_theme_palette.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -2174,7 +2175,10 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
             child: Column(
               children: [
-                _buildFullscreenHeader(shelfName: selectedShelf.name),
+                _buildFullscreenHeader(
+                  shelfName: selectedShelf.name,
+                  shelfTheme: selectedShelf.theme,
+                ),
                 const SizedBox(height: 10),
                 Expanded(
                   child: _isLoading
@@ -2194,8 +2198,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildFullscreenHeader({required String shelfName}) {
+  Widget _buildFullscreenHeader({
+    required String shelfName,
+    required ShelfTheme shelfTheme,
+  }) {
     final theme = Theme.of(context);
+    final palette = shelfTheme.palette;
 
     return SizedBox(
       height: 64,
@@ -2217,9 +2225,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE2C092),
+                  color: palette.nameplate,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF7A482A), width: 2),
+                  border: Border.all(color: palette.nameplateBorder, width: 2),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x30000000),
@@ -2234,7 +2242,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: theme.textTheme.titleLarge?.copyWith(
-                    color: const Color(0xFF4A2919),
+                    color: palette.nameplateText,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.4,
                   ),
