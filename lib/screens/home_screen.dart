@@ -20,6 +20,7 @@ import '../models/library_view_settings.dart';
 import '../services/library_view_settings_service.dart';
 import '../services/portable_cover_restore_service.dart';
 import '../widgets/app_info_dialog.dart';
+import '../dialogs/shelf_appearance_dialog.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -397,6 +398,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   _openRenameShelfDialog();
                   break;
 
+                case 'appearance':
+                  _openShelfAppearanceDialog();
+                  break;
+
                 case 'delete':
                   _confirmDeleteShelf();
                   break;
@@ -418,6 +423,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: ListTile(
                     leading: Icon(Icons.edit_outlined),
                     title: Text('Nimeä uudelleen'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+
+                const PopupMenuItem<String>(
+                  value: 'appearance',
+                  child: ListTile(
+                    leading: Icon(Icons.palette_outlined),
+                    title: Text('Muokkaa ulkoasua'),
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
@@ -897,11 +911,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final currentShelf = shelves[shelfIndex];
 
-    final renamedShelf = Shelf(
-      id: currentShelf.id,
-      name: normalizedName,
-      position: currentShelf.position,
-    );
+    final renamedShelf = currentShelf.copyWith(name: normalizedName);
 
     setState(() {
       shelves[shelfIndex] = renamedShelf;
@@ -1042,6 +1052,53 @@ class _HomeScreenState extends State<HomeScreen> {
         content: Text('Kirjahylly "${shelfToDelete.name}" poistettiin.'),
       ),
     );
+  }
+
+  Future<void> _changeSelectedShelfTheme(ShelfTheme newTheme) async {
+    final shelfIndex = shelves.indexWhere(
+      (shelf) => shelf.id == selectedShelfId,
+    );
+
+    if (shelfIndex == -1) {
+      return;
+    }
+
+    final currentShelf = shelves[shelfIndex];
+
+    if (currentShelf.theme == newTheme) {
+      return;
+    }
+
+    final updatedShelf = currentShelf.copyWith(theme: newTheme);
+
+    setState(() {
+      shelves[shelfIndex] = updatedShelf;
+    });
+
+    await _saveShelves();
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Kirjahyllyn ulkoasu päivitettiin.')),
+    );
+  }
+
+  Future<void> _openShelfAppearanceDialog() async {
+    final theme = await showDialog<ShelfTheme>(
+      context: context,
+      builder: (context) {
+        return ShelfAppearanceDialog(initialTheme: selectedShelf.theme);
+      },
+    );
+
+    if (theme == null || theme == selectedShelf.theme || !mounted) {
+      return;
+    }
+
+    await _changeSelectedShelfTheme(theme);
   }
 
   Future<void> _openBookActions(Book book) async {
