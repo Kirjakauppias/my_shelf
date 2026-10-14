@@ -6,15 +6,19 @@ Sovelluksen keskiössä on virtuaalinen kirjahylly, jossa kirjat esitetään ole
 
 Kirjat voidaan järjestää omiin hyllyihin, lajitella, suodattaa ja asettaa haluttuun järjestykseen raahaamalla. Jokaiselle kirjalle voidaan tallentaa lukutila, tähtiarvosana, henkilökohtainen muistiinpano, käyttäjän itse valitsema kansikuva sekä bibliografisia tietoja, kuten julkaisuvuosi, kustantaja ja sidosasu.
 
-**Nykyinen versio: `v0.14.0-alpha`**
+**Kehitysversio: `v0.15.0-alpha`**
+
+**Viimeisin julkaistu versio: `v0.14.0-alpha`**
 
 Tämä on sovelluksen kehitysversio. Sovelluksen keskeiset toiminnot ovat käytettävissä, mutta ominaisuudet, käyttöliittymä ja tietojen tallennustapa voivat vielä muuttua.
 
-Version `v0.14.0-alpha` pääpaino on kirjan muokkauskokemuksen yhtenäistämisessä. Kirjan nimi, tekijä, ISBN, sivumäärä, julkaisuvuosi, kustantaja, sidosasu, selkämyksen väri, lukutila, arvosana ja muistiinpano voidaan muuttaa samalla lomakkeella ja tallentaa yhdellä kertaa. Kirjan tietosivu toimii ensisijaisesti katselunäkymänä, josta muokkaus avataan yläpalkin kynäpainikkeesta.
+Version `v0.15.0-alpha` pääpaino on kirjahyllyjen ulkoasun kustomoinnissa. Jokaiselle kirjahyllylle voidaan valita oma visuaalinen teema. Käytettävissä ovat Klassinen, Vaalea, Tammi, Pähkinä, Tumma ja Harmaa.
 
-ISBN-13-validointia on tarkennettu: kelvollisen tarkistusnumeron lisäksi tunnuksen on alettava `978`- tai `979`-etuliitteellä. ISBN-kentän voi edelleen jättää tyhjäksi.
+Valittu teema vaikuttaa kirjahyllyn taustaan, kehykseen, hyllylautoihin sekä koko ruudun näkymän nimikylttiin. Teemat toimivat sekä kansikuva- että selkämyksenäkymissä.
 
-Version `v0.13.0-alpha` myötä sovellus osaa tarkistaa uudemmat julkaisut GitHub Releases -rajapinnasta, näyttää asennetun version ja build-numeron sekä avata uuden version julkaisusivun.
+Kirjahyllyn ulkoasua muutetaan visuaalisesta teemavalitsimesta, joka näyttää jokaisen vaihtoehdon pienenä kirjahyllyn esikatseluna. Valinta tallennetaan hyllykohtaisesti ja palautetaan sovelluksen käynnistyessä.
+
+Version `v0.14.0-alpha` pääpaino oli kirjan muokkauskokemuksen yhtenäistämisessä ja ISBN-validoinnin tarkentamisessa.
 
 **## Ominaisuudet**
 
@@ -41,6 +45,22 @@ Version `v0.13.0-alpha` myötä sovellus osaa tarkistaa uudemmat julkaisut GitHu
 \* Viimeistellyt puupinnat, hyllylaudat, varjot ja kansien välit
 
 \* Visuaaliset näkymät tyhjälle hyllylle sekä tyhjille haku- ja suodatustuloksille
+
+\* Kirjahyllyn ulkoasun kustomointi
+
+\* Hyllykohtaisen teeman valitseminen
+
+\* Kuusi valmista kirjahyllyteemaa: Klassinen, Vaalea, Tammi, Pähkinä, Tumma ja Harmaa
+
+\* Teeman käyttäminen sekä kansikuva- että selkämyksenäkymässä
+
+\* Teeman mukainen koko ruudun nimikyltti
+
+\* Visuaalinen teemojen esikatselu ennen tallentamista
+
+\* Teeman säilyminen sovelluksen uudelleenkäynnistyksen jälkeen
+
+\* Vanhojen hyllytietojen yhteensopivuus Klassinen-oletusteemalla
 
 Kirjahyllynäkymä toimii sekä puhelimen pysty- että vaakasuunnassa. Vaakasuunnassa käyttöliittymä tiivistyy automaattisesti, jotta hyllylle ja sen vierittämiselle jää riittävästi tilaa.
 
@@ -384,6 +404,8 @@ Sovellus tukee palautuksessa kahta tiedostomuotoa:
 
 \* aiemmissa versioissa luotu JSON-varmuuskopio
 
+\* kirjahyllyjen ulkoasuteemat
+
 Vanha JSON-varmuuskopio sisältää kirjastotiedot mutta ei varsinaisia paikallisia kansikuvatiedostoja. Aiemmat varmuuskopiot, joissa uusia bibliografisia kenttiä ei ole, ovat edelleen yhteensopivia; puuttuvat arvot palautetaan tuntemattomina tai tyhjinä.
 
 Ennen palauttamista sovellus:
@@ -534,6 +556,8 @@ lib/
 
 │   ├── manual_book_dialog.dart
 
+│   ├── shelf_appearance_dialog.dart
+
 │   └── ...
 
 ├── models/
@@ -596,6 +620,8 @@ lib/
 
 │   └── app_theme.dart
 
+│   └── shelf_theme_palette.dart
+
 ├── utils/
 
 │   ├── book_query.dart
@@ -642,6 +668,8 @@ test/
 
 │   ├── library_view_settings_test.dart
 
+│   ├── shelf_test.dart
+
 │   └── ...
 
 ├── services/
@@ -665,6 +693,10 @@ test/
 │   ├── portable_cover_restore_service_test.dart
 
 │   └── ...
+
+├── theme/
+
+│   └── shelf_theme_palette_test.dart
 
 ├── utils/
 
@@ -724,7 +756,7 @@ flutter test
 
 \`\`\`
 
-Projektissa on version `v0.14.0-alpha` julkaisuvaiheessa **176 läpäisevää automaattista testiä**.
+Projektissa on version `v0.15.0-alpha` kehitysvaiheessa **186 läpäisevää automaattista testiä**.
 
 Testit kattavat muun muassa:
 
@@ -812,39 +844,57 @@ Testit kattavat muun muassa:
 
 \* päivityksen löytymisen, puuttumisen ja verkkovirheiden käsittelyn
 
+\* kirjahyllyteeman oletusarvon
+
+\* kirjahyllyteeman JSON-tallennuksen ja palautuksen
+
+\* vanhojen ilman teemaa tallennettujen hyllyjen yhteensopivuuden
+
+\* tuntemattoman teemaarvon turvallisen käsittelyn
+
+\* kirjahyllyteeman säilymisen `copyWith()`-operaatioissa
+
+\* kirjahyllyteemojen visuaaliset väripaletit
+
 **## Kehitystilanne**
 
-Version `v0.14.0-alpha` pääpaino on kirjan muokkauskokemuksen yhtenäistämisessä ja viimeistelyssä.
+## Kehitystilanne
+
+Version `v0.15.0-alpha` pääpaino on kirjahyllyjen hyllykohtaisessa kustomoinnissa.
 
 Toteutettuja kokonaisuuksia ovat:
 
-\* kirjan muokattavien tietojen kokoaminen yhdelle lomakkeelle
+\* `ShelfTheme`-tietomalli
 
-\* nimen, tekijän, ISBN:n, sivumäärän, julkaisuvuoden, kustantajan, sidosasun, selkämyksen värin, lukutilan, arvosanan ja muistiinpanon muuttaminen ennen yhtä tallennusta
+\* kuusi valmista kirjahyllyteemaa
 
-\* muokkausten hylkääminen `Peruuta`-toiminnolla
+\* teemojen JSON-tallennus ja palautus
 
-\* kirjan tietosivun muuttaminen ensisijaisesti katselunäkymäksi
+\* vanhojen hyllytietojen taaksepäin yhteensopiva Klassinen-oletusteema
 
-\* kirjan toimintovalikon `Muokkaa`-toiminnon muuttaminen `Kirjan tiedot` -toiminnoksi
+\* `ShelfThemePalette` teemojen visuaalisille väreille
 
-\* ISBN-13-validoinnin tarkentaminen `978`- ja `979`-etuliitteisiin
+\* hyllykohtaiset taustat, kehykset ja hyllylaudat
 
-\* virheellisten 13-numeroisten ISBN-tunnusten, kuten `0000000000000`, hylkääminen
+\* teemojen käyttäminen kansikuva- ja selkämyksenäkymissä
 
-\* ISBN-kentän säilyttäminen valinnaisena
+\* teemojen käyttäminen koko ruudun nimikyltissä
 
-\* muokkauslomakkeen automaattisen näppäimistön avautumisen poistaminen olemassa olevaa kirjaa muokattaessa
+\* `Muokkaa ulkoasua` -toiminto kirjahyllyn toimintovalikossa
 
-\* kirjan toimintovalikon vaakasuuntaisen `RenderFlex`-ylivuodon korjaaminen
+\* kuuden teeman visuaalinen esikatselu
 
-\* kirjan toimintovalikon tekeminen tarvittaessa vieritettäväksi
+\* valinnan tallentaminen vasta käyttäjän vahvistuksesta
 
-\* version `v0.13.0-alpha` GitHub Releases -pohjainen päivitysten tarkistus
+\* teeman säilyminen hyllyn uudelleennimeämisessä
 
-\* release-versiosta toiseen päivittämisen testaaminen paikallisen sovellusdatan säilyessä
+\* teeman säilyminen sovelluksen uudelleenkäynnistyksen jälkeen
 
-\* 176 läpäisevää automaattista testiä
+\* teemavalitsimen responsiivisen asettelun viimeistely
+
+\* käyttötestaus oikealla Android-laitteella
+
+\* 186 läpäisevää automaattista testiä
 
 **## Suunniteltuja ominaisuuksia**
 

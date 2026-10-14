@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_shelf/models/book.dart';
 import 'package:my_shelf/models/library_backup.dart';
+import 'package:my_shelf/models/shelf.dart';
 
 void main() {
   group('LibraryBackup', () {
@@ -73,6 +74,56 @@ void main() {
         () => LibraryBackup.decode(invalidBackup),
         throwsA(isA<FormatException>()),
       );
+    });
+
+    test('säilyttää kirjahyllyn teeman varmuuskopiossa', () {
+      final originalBackup = LibraryBackup(
+        formatVersion: LibraryBackup.currentFormatVersion,
+        createdAt: DateTime.utc(2026, 10, 14, 10, 0),
+        books: const [],
+        shelves: const [
+          Shelf(
+            id: 'fantasy-shelf',
+            name: 'Fantasia',
+            position: 0,
+            theme: ShelfTheme.walnut,
+          ),
+        ],
+      );
+
+      final encodedBackup = originalBackup.encode();
+      final restoredBackup = LibraryBackup.decode(encodedBackup);
+
+      expect(restoredBackup.shelves, hasLength(1));
+
+      final restoredShelf = restoredBackup.shelves.single;
+
+      expect(restoredShelf.id, 'fantasy-shelf');
+      expect(restoredShelf.name, 'Fantasia');
+      expect(restoredShelf.position, 0);
+      expect(restoredShelf.theme, ShelfTheme.walnut);
+    });
+
+    test('palauttaa vanhan ilman teemaa olevan hyllyn classic-teemalla', () {
+      const oldBackup = '''
+    {
+      "formatVersion": 1,
+      "createdAt": "2026-09-22T10:00:00.000Z",
+      "books": [],
+      "shelves": [
+        {
+          "id": "old-shelf",
+          "name": "Vanha hylly",
+          "position": 0
+        }
+      ]
+    }
+    ''';
+
+      final restoredBackup = LibraryBackup.decode(oldBackup);
+
+      expect(restoredBackup.shelves, hasLength(1));
+      expect(restoredBackup.shelves.single.theme, ShelfTheme.classic);
     });
   });
 }

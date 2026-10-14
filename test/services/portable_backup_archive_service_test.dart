@@ -76,6 +76,49 @@ void main() {
       },
     );
 
+    test('säilyttää kirjahyllyn teeman ZIP-varmuuskopiossa', () {
+      final baseBackup = _createBackup(customCoverFileName: 'book-1-cover.jpg');
+
+      final backup = LibraryBackup(
+        formatVersion: baseBackup.formatVersion,
+        createdAt: baseBackup.createdAt,
+        books: baseBackup.books,
+        shelves: [
+          ...baseBackup.shelves,
+          const Shelf(
+            id: 'themed-shelf',
+            name: 'Tumma hylly',
+            position: 99,
+            theme: ShelfTheme.dark,
+          ),
+        ],
+      );
+
+      final zipBytes = service.encode(
+        backup: backup,
+        coverFiles: {
+          'book-1-cover.jpg': Uint8List.fromList(<int>[1, 2, 3, 4, 5]),
+        },
+      );
+
+      final archive = ZipDecoder().decodeBytes(zipBytes);
+
+      final libraryFile = archive.find(PortableBackupManifest.libraryFileName);
+
+      expect(libraryFile, isNotNull);
+
+      final restoredBackup = LibraryBackup.decode(
+        utf8.decode(libraryFile!.readBytes()!),
+      );
+
+      final restoredShelf = restoredBackup.shelves.firstWhere(
+        (shelf) => shelf.id == 'themed-shelf',
+      );
+
+      expect(restoredShelf.name, 'Tumma hylly');
+      expect(restoredShelf.theme, ShelfTheme.dark);
+    });
+
     test('ei lisää arkistoon tarpeettomia kansikuvatiedostoja', () {
       final backup = _createBackup(customCoverFileName: 'used-cover.jpg');
 

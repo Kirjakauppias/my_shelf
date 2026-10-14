@@ -1,5 +1,54 @@
 ## [Unreleased]
 
+### Lisätty
+
+- `ShelfTheme` kirjahyllyn hyllykohtaisen ulkoasun tallentamiseen
+- Kuusi valmista kirjahyllyteemaa: Klassinen, Vaalea, Tammi, Pähkinä, Tumma ja Harmaa
+- `ShelfThemePalette` kirjahyllyteemojen visuaalisten värien määrittelyyn
+- Hyllykohtaiset värit kirjahyllyn taustalle, kehykselle ja hyllylaudoille
+- Hyllykohtaiset värit koko ruudun näkymän nimikyltille
+- `Muokkaa ulkoasua` -toiminto kirjahyllyn toimintovalikkoon
+- Visuaalinen teemavalitsin, jossa jokainen teema esitetään pienenä kirjahyllyn esikatseluna
+- Valitun teeman korostus teemavalitsimessa
+- Kirjahyllyn teeman tallennus osaksi hyllyn JSON-dataa
+
+### Muutettu
+
+- Kansikuvanäkymä käyttää nyt valitun kirjahyllyn omaa teemaa
+- Selkämyksenäkymä käyttää nyt valitun kirjahyllyn omaa teemaa
+- Hyllylaudat mukautuvat valittuun kirjahyllyteemaan
+- Koko ruudun näkymän nimikyltti mukautuu valittuun kirjahyllyteemaan
+- Kirjahyllyn uudelleennimeäminen käyttää `copyWith()`-metodia, jotta hyllyn muut tiedot, kuten teema, säilyvät
+- Olemassa olevat vanhat hyllyt käyttävät automaattisesti Klassinen-teemaa, jos tallennetussa datassa ei ole teemaa
+- Tuntematon tallennettu teemaarvo palautuu turvallisesti Klassinen-teemaksi
+- Teeman valinta tallennetaan vasta käyttäjän valitessa `Tallenna`
+- `Peruuta` sulkee ulkoasudialogin muuttamatta kirjahyllyn teemaa
+
+### Korjattu
+
+- Estetty kirjahyllyn teeman palautuminen Klassinen-teemaan hyllyä uudelleennimettäessä
+- Korjattu teemavalitsimen esikatselukorttien `RenderFlex`-ylivuoto pystysuuntaisessa näkymässä
+- Teemakorttien mitoitusta viimeisteltiin niin, että valinnan korostaminen ei muuta korttien tarvitsemaa tilaa
+
+### Testattu
+
+- Uuden hyllyn oletusteema
+- Hyllyteeman JSON-tallennus ja palautus
+- Vanhan ilman teemaa tallennetun hyllydatan yhteensopivuus
+- Tuntemattoman teemaarvon turvallinen käsittely
+- Hyllyteeman vaihtaminen `copyWith()`-metodilla
+- Jokaiselle `ShelfTheme`-arvolle löytyvä visuaalinen väripaletti
+- Eri teemojen omat hyllylautojen värit
+- Teemojen toiminta kansikuva- ja selkämyksenäkymissä
+- Teeman säilyminen hyllyä vaihdettaessa ja uudelleennimettäessä
+- Teeman säilyminen sovelluksen uudelleenkäynnistyksen jälkeen
+- Kuuden teeman ulkoasu oikealla Android-laitteella
+- Nimikylttien kontrasti ja luettavuus koko ruudun näkymässä
+- Teemavalitsimen toiminta pystysuuntaisessa näkymässä
+- `Tallenna`- ja `Peruuta`-toiminnot oikealla laitteella
+- Flutter-analyysi
+- Kaikki 186 automaattista testiä
+
 ### Suunnitteilla
 
 - Kirjahyllyjen järjestäminen
