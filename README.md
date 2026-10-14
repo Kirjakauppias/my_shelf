@@ -8,7 +8,7 @@ Kirjat voidaan järjestää omiin hyllyihin, lajitella, suodattaa ja asettaa hal
 
 **Kehitysversio: `v0.15.0-alpha`**
 
-**Viimeisin julkaistu versio: `v0.14.0-alpha`**
+**Viimeisin julkaistu versio: `v0.15.0-alpha`**
 
 Tämä on sovelluksen kehitysversio. Sovelluksen keskeiset toiminnot ovat käytettävissä, mutta ominaisuudet, käyttöliittymä ja tietojen tallennustapa voivat vielä muuttua.
 
@@ -756,7 +756,7 @@ flutter test
 
 \`\`\`
 
-Projektissa on version `v0.15.0-alpha` kehitysvaiheessa **186 läpäisevää automaattista testiä**.
+Projektissa on version `v0.15.0-alpha` kehitysvaiheessa **189 läpäisevää automaattista testiä**.
 
 Testit kattavat muun muassa:
 

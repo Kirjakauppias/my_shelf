@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.15.0-alpha] - 2026-10-14
+
 ### Lisätty
 
 - `ShelfTheme` kirjahyllyn hyllykohtaisen ulkoasun tallentamiseen
@@ -47,7 +49,7 @@
 - Teemavalitsimen toiminta pystysuuntaisessa näkymässä
 - `Tallenna`- ja `Peruuta`-toiminnot oikealla laitteella
 - Flutter-analyysi
-- Kaikki 186 automaattista testiä
+- Kaikki 189 automaattista testiä
 
 ### Suunnitteilla
 
@@ -61,7 +63,6 @@
 - Käyttäjätilit
 
 
-## [0.14.0-alpha] - 2026-09-22
 
 ### Muutettu
 
