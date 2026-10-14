@@ -20,6 +20,8 @@ import '../models/library_view_settings.dart';
 import '../services/library_view_settings_service.dart';
 import '../services/portable_cover_restore_service.dart';
 import '../widgets/app_info_dialog.dart';
+import '../dialogs/shelf_appearance_dialog.dart';
+import '../theme/shelf_theme_palette.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -397,6 +399,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   _openRenameShelfDialog();
                   break;
 
+                case 'appearance':
+                  _openShelfAppearanceDialog();
+                  break;
+
                 case 'delete':
                   _confirmDeleteShelf();
                   break;
@@ -418,6 +424,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: ListTile(
                     leading: Icon(Icons.edit_outlined),
                     title: Text('Nimeä uudelleen'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+
+                const PopupMenuItem<String>(
+                  value: 'appearance',
+                  child: ListTile(
+                    leading: Icon(Icons.palette_outlined),
+                    title: Text('Muokkaa ulkoasua'),
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
@@ -897,11 +912,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final currentShelf = shelves[shelfIndex];
 
-    final renamedShelf = Shelf(
-      id: currentShelf.id,
-      name: normalizedName,
-      position: currentShelf.position,
-    );
+    final renamedShelf = currentShelf.copyWith(name: normalizedName);
 
     setState(() {
       shelves[shelfIndex] = renamedShelf;
@@ -1044,55 +1055,110 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _changeSelectedShelfTheme(ShelfTheme newTheme) async {
+    final shelfIndex = shelves.indexWhere(
+      (shelf) => shelf.id == selectedShelfId,
+    );
+
+    if (shelfIndex == -1) {
+      return;
+    }
+
+    final currentShelf = shelves[shelfIndex];
+
+    if (currentShelf.theme == newTheme) {
+      return;
+    }
+
+    final updatedShelf = currentShelf.copyWith(theme: newTheme);
+
+    setState(() {
+      shelves[shelfIndex] = updatedShelf;
+    });
+
+    await _saveShelves();
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Kirjahyllyn ulkoasu päivitettiin.')),
+    );
+  }
+
+  Future<void> _openShelfAppearanceDialog() async {
+    final theme = await showDialog<ShelfTheme>(
+      context: context,
+      builder: (context) {
+        return ShelfAppearanceDialog(initialTheme: selectedShelf.theme);
+      },
+    );
+
+    if (theme == null || theme == selectedShelf.theme || !mounted) {
+      return;
+    }
+
+    await _changeSelectedShelfTheme(theme);
+  }
+
   Future<void> _openBookActions(Book book) async {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (bottomSheetContext) {
+        final screenHeight = MediaQuery.sizeOf(bottomSheetContext).height;
+
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: Text(
-                  book.title,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text(book.author),
-              ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('Muokkaa'),
-                onTap: () async {
-                  Navigator.of(bottomSheetContext).pop();
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: screenHeight * 0.9),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    title: Text(
+                      book.title,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(book.author),
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.info_outlined),
+                    title: const Text('Kirjan tiedot'),
+                    onTap: () async {
+                      Navigator.of(bottomSheetContext).pop();
 
-                  await _openBookDetails(book);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.drive_file_move_outlined),
-                title: const Text('Siirrä hyllyyn'),
-                enabled: shelves.length > 1,
-                onTap: shelves.length > 1
-                    ? () {
-                        Navigator.of(bottomSheetContext).pop();
+                      await _openBookDetails(book);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.drive_file_move_outlined),
+                    title: const Text('Siirrä hyllyyn'),
+                    enabled: shelves.length > 1,
+                    onTap: shelves.length > 1
+                        ? () {
+                            Navigator.of(bottomSheetContext).pop();
 
-                        _openMoveBookDialog(book);
-                      }
-                    : null,
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete_outline),
-                title: const Text('Poista'),
-                onTap: () {
-                  Navigator.of(bottomSheetContext).pop();
+                            _openMoveBookDialog(book);
+                          }
+                        : null,
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.delete_outline),
+                    title: const Text('Poista'),
+                    onTap: () {
+                      Navigator.of(bottomSheetContext).pop();
 
-                  _deleteBook(book);
-                },
+                      _deleteBook(book);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                ],
               ),
-              const SizedBox(height: 8),
-            ],
+            ),
           ),
         );
       },
@@ -2056,6 +2122,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case BookViewMode.covers:
         return BookCoverShelf(
           books: visibleBooks,
+          theme: selectedShelf.theme,
           canReorder: _canReorderBooks,
           showReadingStatusBadges: _showReadingStatusBadges,
           isFullscreen: _isShelfFullscreen,
@@ -2067,6 +2134,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case BookViewMode.spines:
         return Bookshelf(
           books: visibleBooks,
+          theme: selectedShelf.theme,
           showReadingStatusBadges: _showReadingStatusBadges,
           onReorder: _canReorderBooks ? _reorderVisibleBooks : _disabledReorder,
           onMoveToEnd: _canReorderBooks ? _moveBookToEnd : _disabledMoveToEnd,
@@ -2107,7 +2175,10 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
             child: Column(
               children: [
-                _buildFullscreenHeader(shelfName: selectedShelf.name),
+                _buildFullscreenHeader(
+                  shelfName: selectedShelf.name,
+                  shelfTheme: selectedShelf.theme,
+                ),
                 const SizedBox(height: 10),
                 Expanded(
                   child: _isLoading
@@ -2127,8 +2198,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildFullscreenHeader({required String shelfName}) {
+  Widget _buildFullscreenHeader({
+    required String shelfName,
+    required ShelfTheme shelfTheme,
+  }) {
     final theme = Theme.of(context);
+    final palette = shelfTheme.palette;
 
     return SizedBox(
       height: 64,
@@ -2150,9 +2225,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE2C092),
+                  color: palette.nameplate,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF7A482A), width: 2),
+                  border: Border.all(color: palette.nameplateBorder, width: 2),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x30000000),
@@ -2167,7 +2242,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: theme.textTheme.titleLarge?.copyWith(
-                    color: const Color(0xFF4A2919),
+                    color: palette.nameplateText,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.4,
                   ),

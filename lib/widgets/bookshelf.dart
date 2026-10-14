@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/book.dart';
+import '../models/shelf.dart';
+import '../theme/shelf_theme_palette.dart';
 import 'shelf_board.dart';
 import 'shelf_row.dart';
 
@@ -15,6 +17,9 @@ class Bookshelf extends StatelessWidget {
 
   final bool showReadingStatusBadges;
 
+  /// Hyllyn visuaalinen teema.
+  final ShelfTheme theme;
+
   const Bookshelf({
     super.key,
     required this.books,
@@ -22,6 +27,7 @@ class Bookshelf extends StatelessWidget {
     required this.onMoveToEnd,
     required this.onBookTap,
     this.showReadingStatusBadges = false,
+    this.theme = ShelfTheme.classic,
   });
 
   static const double bookSpacing = 3;
@@ -29,12 +35,18 @@ class Bookshelf extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = theme.palette;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 12, 10, 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFE6D0B1),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [palette.backgroundTop, palette.backgroundBottom],
+        ),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF9A7150), width: 4),
+        border: Border.all(color: palette.frameBorder, width: 4),
         boxShadow: const [
           BoxShadow(
             color: Color(0x22000000),
@@ -67,7 +79,7 @@ class Bookshelf extends StatelessWidget {
                         showEndDropTarget: index == shelfRows.length - 1,
                       ),
                     ),
-                    const ShelfBoard(),
+                    ShelfBoard(theme: theme),
                   ],
                 ),
               );
