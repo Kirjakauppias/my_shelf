@@ -57,11 +57,11 @@ class _ShelfAppearanceDialogState extends State<ShelfAppearanceDialog> {
             crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 1.45,
+            childAspectRatio: 1.0,
           ),
           itemBuilder: (context, index) {
             final theme = ShelfTheme.values[index];
-            final palette = theme.palette;
+
             final isSelected = theme == _selectedTheme;
 
             return InkWell(
@@ -73,54 +73,20 @@ class _ShelfAppearanceDialogState extends State<ShelfAppearanceDialog> {
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 160),
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isSelected
                         ? Theme.of(context).colorScheme.primary
                         : Theme.of(context).colorScheme.outlineVariant,
-                    width: isSelected ? 3 : 1,
+                    width: 3,
                   ),
                 ),
                 child: Column(
                   children: [
                     Expanded(
-                      child: Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              palette.coverBackgroundTop,
-                              palette.coverBackgroundMiddle,
-                              palette.coverBackgroundBottom,
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: palette.coverFrameBorder,
-                            width: 2,
-                          ),
-                        ),
-                        child: Align(
-                          alignment: Alignment.bottomCenter,
-                          child: Container(
-                            height: 10,
-                            margin: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [palette.board, palette.boardEdge],
-                              ),
-                              borderRadius: BorderRadius.circular(3),
-                              border: Border.all(color: palette.boardBorder),
-                            ),
-                          ),
-                        ),
-                      ),
+                      child: _buildThemePreview(theme, isSelected: isSelected),
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -152,6 +118,160 @@ class _ShelfAppearanceDialogState extends State<ShelfAppearanceDialog> {
           child: const Text('Tallenna'),
         ),
       ],
+    );
+  }
+
+  Widget _buildThemePreview(ShelfTheme theme, {required bool isSelected}) {
+    final palette = theme.palette;
+
+    return Stack(
+      children: [
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                palette.coverBackgroundTop,
+                palette.coverBackgroundMiddle,
+                palette.coverBackgroundBottom,
+              ],
+              stops: const [0, 0.55, 1],
+            ),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: palette.coverFrameBorder, width: 2),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 7, 8, 6),
+            child: Column(
+              children: [
+                // Pieni nimikyltti.
+                Container(
+                  constraints: const BoxConstraints(maxWidth: 100),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: palette.nameplate,
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(color: palette.nameplateBorder),
+                  ),
+                  child: Text(
+                    _themeLabel(theme),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: palette.nameplateText,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+
+                const Spacer(),
+
+                // Muutama kirja antamassa mittakaavaa.
+                SizedBox(
+                  height: 38,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildPreviewBook(
+                        width: 13,
+                        height: 31,
+                        color: const Color(0xFF8C4A3C),
+                      ),
+                      const SizedBox(width: 3),
+                      _buildPreviewBook(
+                        width: 15,
+                        height: 36,
+                        color: const Color(0xFF3F627A),
+                      ),
+                      const SizedBox(width: 3),
+                      _buildPreviewBook(
+                        width: 12,
+                        height: 29,
+                        color: const Color(0xFF6D7442),
+                      ),
+                      const SizedBox(width: 3),
+                      _buildPreviewBook(
+                        width: 14,
+                        height: 34,
+                        color: const Color(0xFF8A683F),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 2),
+
+                // Hyllylauta.
+                Container(
+                  height: 8,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [palette.board, palette.boardEdge],
+                    ),
+                    borderRadius: BorderRadius.circular(2),
+                    border: Border.all(color: palette.boardBorder),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Valitun teeman merkki.
+        if (isSelected)
+          Positioned(
+            top: 5,
+            right: 5,
+            child: Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.check,
+                size: 14,
+                color: Theme.of(context).colorScheme.onPrimary,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildPreviewBook({
+    required double width,
+    required double height,
+    required Color color,
+  }) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(2),
+          topRight: Radius.circular(2),
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x28000000),
+            blurRadius: 2,
+            offset: Offset(1, 1),
+          ),
+        ],
+      ),
     );
   }
 }
